@@ -6,8 +6,8 @@ import { InventoryItem, InventoryItemDocument } from './inventory_items.schema';
 @Injectable()
 export class InventoryItemsService {
   constructor(
-    @InjectModel(InventoryItem.name) 
-    private inventoryItemModel: Model<InventoryItemDocument>
+    @InjectModel(InventoryItem.name)
+    private inventoryItemModel: Model<InventoryItemDocument>,
   ) {}
 
   async create(data: Partial<InventoryItem>): Promise<InventoryItem> {
@@ -15,9 +15,9 @@ export class InventoryItemsService {
     const itemData = {
       ...data,
       created_at: data.created_at || now,
-      updated_at: data.updated_at || now
+      updated_at: data.updated_at || now,
     };
-    
+
     const createdItem = new this.inventoryItemModel(itemData);
     return createdItem.save();
   }
@@ -30,13 +30,18 @@ export class InventoryItemsService {
     return this.inventoryItemModel.findOne({ id }).exec();
   }
 
-  async update(id: string, data: Partial<InventoryItem>): Promise<InventoryItem | null> {
+  async update(
+    id: string,
+    data: Partial<InventoryItem>,
+  ): Promise<InventoryItem | null> {
     const updateData = {
       ...data,
-      updated_at: new Date()
+      updated_at: new Date(),
     };
-    
-    return this.inventoryItemModel.findOneAndUpdate({ id }, updateData, { new: true }).exec();
+
+    return this.inventoryItemModel
+      .findOneAndUpdate({ id }, updateData, { new: true })
+      .exec();
   }
 
   async delete(id: string): Promise<InventoryItem | null> {

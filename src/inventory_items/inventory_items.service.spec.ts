@@ -8,17 +8,17 @@ describe('InventoryItemsService', () => {
 
   const mockInventoryItemModel = {
     find: jest.fn().mockReturnValue({
-      exec: jest.fn().mockResolvedValue([])
+      exec: jest.fn().mockResolvedValue([]),
     }),
     findOne: jest.fn().mockReturnValue({
-      exec: jest.fn().mockResolvedValue(null)
+      exec: jest.fn().mockResolvedValue(null),
     }),
     create: jest.fn(),
     findOneAndUpdate: jest.fn().mockReturnValue({
-      exec: jest.fn().mockResolvedValue(null)
+      exec: jest.fn().mockResolvedValue(null),
     }),
     findOneAndDelete: jest.fn().mockReturnValue({
-      exec: jest.fn().mockResolvedValue(null)
+      exec: jest.fn().mockResolvedValue(null),
     }),
     save: jest.fn(),
   };
