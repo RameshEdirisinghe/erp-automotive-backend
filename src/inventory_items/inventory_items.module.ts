@@ -10,7 +10,8 @@ import { InventoryItem, InventoryItemSchema } from './inventory_items.schema';
       { name: InventoryItem.name, schema: InventoryItemSchema }
     ]),
   ],
+  controllers: [InventoryItemsController],
   providers: [InventoryItemsService],
-  controllers: [InventoryItemsController]
+  exports: [InventoryItemsService],
 })
 export class InventoryItemsModule {}

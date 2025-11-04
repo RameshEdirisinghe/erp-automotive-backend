@@ -1,7 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
 import { InventoryItemsService } from './inventory_items.service';
-import { InventoryItem } from './inventory_items.schema';
 
 describe('InventoryItemsService', () => {
   let service: InventoryItemsService;
@@ -25,13 +23,7 @@ describe('InventoryItemsService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        InventoryItemsService,
-        {
-          provide: getModelToken(InventoryItem.name),
-          useValue: mockInventoryItemModel,
-        },
-      ],
+      providers: [InventoryItemsService],
     }).compile();
 
     service = module.get<InventoryItemsService>(InventoryItemsService);

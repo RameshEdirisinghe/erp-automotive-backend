@@ -27,7 +27,7 @@ export class InventoryItemsService {
   }
 
   async findOne(id: string): Promise<InventoryItem | null> {
-    return this.inventoryItemModel.findOne({ id }).exec();
+    return this.inventoryItemModel.findById(id).exec();
   }
 
   async update(
@@ -45,6 +45,6 @@ export class InventoryItemsService {
   }
 
   async delete(id: string): Promise<InventoryItem | null> {
-    return this.inventoryItemModel.findOneAndDelete({ id }).exec();
+    return this.inventoryItemModel.findByIdAndDelete(id).exec();
   }
 }
