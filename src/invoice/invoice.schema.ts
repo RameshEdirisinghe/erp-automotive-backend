@@ -31,7 +31,7 @@ export class Invoice {
       required: true 
     },
     quantity: { type: Number, required: true, min: 1 },
-    unitPrice: { type: Number, required: true }, // Added unitPrice for clarity
+    unitPrice: { type: Number, required: true }, 
     total: { type: Number, required: true }
   }])
   items: Array<{
