@@ -20,7 +20,7 @@ export class InventoryItem {
   @Prop({
     required: true,
     enum: ['in_stock', 'out_of_stock', 'discontinued'],
-    default: 'in_stock'
+    default: 'in_stock',
   })
   status: string;
 
