@@ -3,27 +3,9 @@ import { Document } from 'mongoose';
 
 export type InventoryItemDocument = InventoryItem & Document;
 
-@Schema({ _id: false })
-export class VehicleInfo {
-  @Prop({ required: true })
-  brand: string;
-
-  @Prop({ required: true })
-  model: string;
-
-  @Prop({ required: true })
-  chassis_no: string;
-
-  @Prop({ required: true })
-  year: number;
-}
-
-@Schema()
+@Schema({ timestamps: true })
 export class InventoryItem {
   @Prop({ required: true, unique: true })
-  id: string;
-
-  @Prop({ required: true })
   product_name: string;
 
   @Prop({ required: true, unique: true })
@@ -42,8 +24,21 @@ export class InventoryItem {
   })
   status: string;
 
-  @Prop({ type: VehicleInfo, required: true })
-  vehicle: VehicleInfo;
+  @Prop({
+    type: {
+      brand: { type: String, required: true },
+      model: { type: String, required: true },
+      chassis_no: { type: String, required: true },
+      year: { type: Number, required: true }
+    },
+    required: true
+  })
+  vehicle: {
+    brand: string;
+    model: string;
+    chassis_no: string;
+    year: number;
+  };
 
   @Prop({ required: true })
   purchase_price: number;
@@ -53,12 +48,6 @@ export class InventoryItem {
 
   @Prop({ required: true })
   shipment_code: string;
-
-  @Prop({ required: true })
-  created_at: Date;
-
-  @Prop({ required: true })
-  updated_at: Date;
 }
 
 export const InventoryItemSchema = SchemaFactory.createForClass(InventoryItem);

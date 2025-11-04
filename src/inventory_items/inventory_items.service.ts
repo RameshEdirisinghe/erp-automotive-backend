@@ -11,14 +11,7 @@ export class InventoryItemsService {
   ) {}
 
   async create(data: Partial<InventoryItem>): Promise<InventoryItem> {
-    const now = new Date();
-    const itemData = {
-      ...data,
-      created_at: data.created_at || now,
-      updated_at: data.updated_at || now
-    };
-    
-    const createdItem = new this.inventoryItemModel(itemData);
+    const createdItem = new this.inventoryItemModel(data);
     return createdItem.save();
   }
 
@@ -27,19 +20,14 @@ export class InventoryItemsService {
   }
 
   async findOne(id: string): Promise<InventoryItem | null> {
-    return this.inventoryItemModel.findOne({ id }).exec();
+    return this.inventoryItemModel.findById(id).exec();
   }
 
   async update(id: string, data: Partial<InventoryItem>): Promise<InventoryItem | null> {
-    const updateData = {
-      ...data,
-      updated_at: new Date()
-    };
-    
-    return this.inventoryItemModel.findOneAndUpdate({ id }, updateData, { new: true }).exec();
+    return this.inventoryItemModel.findByIdAndUpdate(id, data, { new: true }).exec();
   }
 
   async delete(id: string): Promise<InventoryItem | null> {
-    return this.inventoryItemModel.findOneAndDelete({ id }).exec();
+    return this.inventoryItemModel.findByIdAndDelete(id).exec();
   }
 }
