@@ -12,8 +12,7 @@ import { User } from './users.schema';
 
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {
-  }
+  constructor(private readonly usersService: UsersService) {}
 
   @Post()
   async create(@Body() body: Partial<User>): Promise<User> {
