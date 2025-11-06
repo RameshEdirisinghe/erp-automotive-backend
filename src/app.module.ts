@@ -4,8 +4,8 @@ import { DatabaseModule } from './database/database.module';
 import { UsersModule } from './users/users.module';
 import { InventoryItemsModule } from './inventory_items/inventory_items.module';
 import { InvoiceModule } from './invoice/invoice.module';
+import { QuotationModule } from './quotation/quotation.module';
 import { AuthModule } from './auth/auth.module';
-import { AuthController } from './auth/auth.controller';
 
 @Module({
   imports: [
@@ -17,8 +17,8 @@ import { AuthController } from './auth/auth.controller';
     UsersModule,
     InventoryItemsModule,
     InvoiceModule,
+    QuotationModule,
     AuthModule,
   ],
-  controllers: [AuthController],
 })
 export class AppModule {}
