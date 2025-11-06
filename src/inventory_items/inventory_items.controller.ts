@@ -12,33 +12,30 @@ import { InventoryItem } from './inventory_items.schema';
 
 @Controller('inventory-items')
 export class InventoryItemsController {
-  constructor(private readonly inventoryItemsService: InventoryItemsService) {}
+  constructor(private readonly service: InventoryItemsService) {}
 
   @Post()
-  async create(@Body() body: Partial<InventoryItem>): Promise<InventoryItem> {
-    return this.inventoryItemsService.create(body);
+  async create(@Body() body: Partial<InventoryItem>) {
+    return this.service.create(body);
   }
 
   @Get()
-  async findAll(): Promise<InventoryItem[]> {
-    return this.inventoryItemsService.findAll();
+  async findAll() {
+    return this.service.findAll();
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string): Promise<InventoryItem | null> {
-    return this.inventoryItemsService.findOne(id);
+  async findOne(@Param('id') id: string) {
+    return this.service.findOne(id);
   }
 
   @Put(':id')
-  async update(
-    @Param('id') id: string,
-    @Body() body: Partial<InventoryItem>,
-  ): Promise<InventoryItem | null> {
-    return this.inventoryItemsService.update(id, body);
+  async update(@Param('id') id: string, @Body() body: Partial<InventoryItem>) {
+    return this.service.update(id, body);
   }
 
   @Delete(':id')
-  async delete(@Param('id') id: string): Promise<InventoryItem | null> {
-    return this.inventoryItemsService.delete(id);
+  async delete(@Param('id') id: string) {
+    return this.service.delete(id);
   }
 }
