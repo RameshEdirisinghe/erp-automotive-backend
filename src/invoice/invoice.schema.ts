@@ -3,7 +3,9 @@ import { Document, Schema as MongooseSchema } from 'mongoose';
 
 export type InvoiceDocument = Invoice & Document;
 
-@Schema({ timestamps: true })
+@Schema({
+  timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
+})
 export class Invoice {
   @Prop({ required: true, unique: true })
   invoiceId: string;
@@ -13,9 +15,9 @@ export class Invoice {
       name: { type: String, required: true },
       email: { type: String, required: true },
       phone: { type: String, required: true },
-      address: { type: String }
+      address: { type: String },
     },
-    required: true
+    required: true,
   })
   customer: {
     name: string;
@@ -24,16 +26,18 @@ export class Invoice {
     address?: string;
   };
 
-  @Prop([{
-    item: { 
-      type: MongooseSchema.Types.ObjectId, 
-      ref: 'InventoryItem', 
-      required: true 
+  @Prop([
+    {
+      item: {
+        type: MongooseSchema.Types.ObjectId,
+        ref: 'InventoryItem',
+        required: true,
+      },
+      quantity: { type: Number, required: true, min: 1 },
+      unitPrice: { type: Number, required: true },
+      total: { type: Number, required: true },
     },
-    quantity: { type: Number, required: true, min: 1 },
-    unitPrice: { type: Number, required: true }, 
-    total: { type: Number, required: true }
-  }])
+  ])
   items: Array<{
     item: MongooseSchema.Types.ObjectId;
     quantity: number;
@@ -53,13 +57,13 @@ export class Invoice {
   @Prop({
     required: true,
     enum: ['Pending', 'Completed', 'Rejected'],
-    default: 'Pending'
+    default: 'Pending',
   })
   paymentStatus: string;
 
   @Prop({
     required: true,
-    enum: ['Cash', 'Card', 'Bank Deposit', 'Cheque']
+    enum: ['Cash', 'Card', 'Bank Deposit', 'Cheque'],
   })
   paymentMethod: string;
 
@@ -72,8 +76,14 @@ export class Invoice {
   @Prop({ required: true, type: Date })
   dueDate: Date;
 
-  @Prop({ type: String })
+  @Prop()
   notes?: string;
+
+  @Prop()
+  created_at: Date;
+
+  @Prop()
+  updated_at: Date;
 }
 
 export const InvoiceSchema = SchemaFactory.createForClass(Invoice);
