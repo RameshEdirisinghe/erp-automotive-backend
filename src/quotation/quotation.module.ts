@@ -7,7 +7,7 @@ import { Quotation, QuotationSchema } from './quotation.schema';
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: Quotation.name, schema: QuotationSchema }
+      { name: Quotation.name, schema: QuotationSchema },
     ]),
   ],
   controllers: [QuotationController],

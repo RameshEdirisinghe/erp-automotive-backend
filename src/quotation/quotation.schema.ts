@@ -13,9 +13,9 @@ export class Quotation {
       name: { type: String, required: true },
       email: { type: String, required: true },
       phone: { type: String, required: true },
-      address: { type: String }
+      address: { type: String },
     },
-    required: true
+    required: true,
   })
   customer: {
     name: string;
@@ -24,16 +24,18 @@ export class Quotation {
     address?: string;
   };
 
-  @Prop([{
-    item: { 
-      type: MongooseSchema.Types.ObjectId, 
-      ref: 'InventoryItem', 
-      required: true 
+  @Prop([
+    {
+      item: {
+        type: MongooseSchema.Types.ObjectId,
+        ref: 'InventoryItem',
+        required: true,
+      },
+      quantity: { type: Number, required: true, min: 1 },
+      unitPrice: { type: Number, required: true },
+      total: { type: Number, required: true },
     },
-    quantity: { type: Number, required: true, min: 1 },
-    unitPrice: { type: Number, required: true },
-    total: { type: Number, required: true }
-  }])
+  ])
   items: Array<{
     item: MongooseSchema.Types.ObjectId;
     quantity: number;
@@ -52,7 +54,7 @@ export class Quotation {
 
   @Prop({
     required: true,
-    enum: ['Cash', 'Card', 'Bank Deposit', 'Cheque']
+    enum: ['Cash', 'Card', 'Bank Deposit', 'Cheque'],
   })
   paymentMethod: string;
 
@@ -65,7 +67,7 @@ export class Quotation {
   @Prop({
     required: true,
     enum: ['Pending', 'Accepted', 'Rejected', 'Expired'],
-    default: 'Pending'
+    default: 'Pending',
   })
   status: string;
 
