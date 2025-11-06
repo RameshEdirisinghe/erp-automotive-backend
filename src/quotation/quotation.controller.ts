@@ -27,7 +27,9 @@ export class QuotationController {
   }
 
   @Get('quotation-id/:quotationId')
-  async findByQuotationId(@Param('quotationId') quotationId: string): Promise<Quotation> {
+  async findByQuotationId(
+    @Param('quotationId') quotationId: string,
+  ): Promise<Quotation> {
     try {
       return await this.quotationService.findByQuotationId(quotationId);
     } catch (error) {
@@ -65,7 +67,10 @@ export class QuotationController {
     @Body() body: { status: string },
   ): Promise<Quotation> {
     try {
-      return await this.quotationService.updateStatusByQuotationId(quotationId, body.status);
+      return await this.quotationService.updateStatusByQuotationId(
+        quotationId,
+        body.status,
+      );
     } catch (error) {
       throw new HttpException(
         {
@@ -78,7 +83,9 @@ export class QuotationController {
   }
 
   @Delete('quotation-id/:quotationId')
-  async deleteByQuotationId(@Param('quotationId') quotationId: string): Promise<Quotation> {
+  async deleteByQuotationId(
+    @Param('quotationId') quotationId: string,
+  ): Promise<Quotation> {
     try {
       return await this.quotationService.deleteByQuotationId(quotationId);
     } catch (error) {
