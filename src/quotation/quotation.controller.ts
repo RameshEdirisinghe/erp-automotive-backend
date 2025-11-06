@@ -3,15 +3,22 @@ import {
   Controller,
   Delete,
   Get,
+  HttpException,
+  HttpStatus,
   Param,
   Post,
   Put,
-  HttpException,
-  HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { QuotationService } from './quotation.service';
 import { Quotation } from './quotation.schema';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { UserRole } from '../common/enums/role.enum';
 
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN, UserRole.INVENTORY_MANAGER)
 @Controller('quotations')
 export class QuotationController {
   constructor(private readonly quotationService: QuotationService) {}
@@ -26,42 +33,40 @@ export class QuotationController {
     return this.quotationService.findAll();
   }
 
-  @Get('quotation-id/:quotationId')
+  @Get('/:quotationId')
   async findByQuotationId(
     @Param('quotationId') quotationId: string,
   ): Promise<Quotation> {
     try {
       return await this.quotationService.findByQuotationId(quotationId);
-    } catch (error) {
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Quotation not found';
       throw new HttpException(
-        {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: error.message,
-        },
+        { statusCode: HttpStatus.NOT_FOUND, message },
         HttpStatus.NOT_FOUND,
       );
     }
   }
 
-  @Put('quotation-id/:quotationId')
+  @Put('/:quotationId')
   async updateByQuotationId(
     @Param('quotationId') quotationId: string,
     @Body() body: Partial<Quotation>,
   ): Promise<Quotation> {
     try {
       return await this.quotationService.updateByQuotationId(quotationId, body);
-    } catch (error) {
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Quotation not found';
       throw new HttpException(
-        {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: error.message,
-        },
+        { statusCode: HttpStatus.NOT_FOUND, message },
         HttpStatus.NOT_FOUND,
       );
     }
   }
 
-  @Put('quotation-id/:quotationId/status')
+  @Put('/:quotationId/status')
   async updateStatusByQuotationId(
     @Param('quotationId') quotationId: string,
     @Body() body: { status: string },
@@ -71,29 +76,28 @@ export class QuotationController {
         quotationId,
         body.status,
       );
-    } catch (error) {
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Quotation not found';
       throw new HttpException(
-        {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: error.message,
-        },
+        { statusCode: HttpStatus.NOT_FOUND, message },
         HttpStatus.NOT_FOUND,
       );
     }
   }
 
-  @Delete('quotation-id/:quotationId')
+  @Delete('/:quotationId')
   async deleteByQuotationId(
     @Param('quotationId') quotationId: string,
-  ): Promise<Quotation> {
+  ): Promise<{ message: string }> {
     try {
-      return await this.quotationService.deleteByQuotationId(quotationId);
-    } catch (error) {
+      await this.quotationService.deleteByQuotationId(quotationId);
+      return { message: 'Deleted successfully' };
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Quotation not found';
       throw new HttpException(
-        {
-          statusCode: HttpStatus.NOT_FOUND,
-          message: error.message,
-        },
+        { statusCode: HttpStatus.NOT_FOUND, message },
         HttpStatus.NOT_FOUND,
       );
     }
