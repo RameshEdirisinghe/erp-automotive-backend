@@ -6,10 +6,17 @@ import {
   Param,
   Post,
   Put,
+  UseGuards,
 } from '@nestjs/common';
 import { InventoryItemsService } from './inventory_items.service';
 import { InventoryItem } from './inventory_items.schema';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { UserRole } from '../common/enums/role.enum';
 
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN, UserRole.INVENTORY_MANAGER)
 @Controller('inventory-items')
 export class InventoryItemsController {
   constructor(private readonly service: InventoryItemsService) {}
