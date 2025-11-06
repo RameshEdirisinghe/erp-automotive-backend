@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Quotation, QuotationDocument } from './quotation.schema';
@@ -18,27 +18,45 @@ export class QuotationService {
     return this.quotationModel.find().populate('items.item').exec();
   }
 
-  async findByQuotationId(quotationId: string): Promise<Quotation | null> {
-    return this.quotationModel.findOne({ quotationId }).populate('items.item').exec();
+  async findByQuotationId(quotationId: string): Promise<Quotation> {
+    const quotation = await this.quotationModel.findOne({ quotationId }).populate('items.item').exec();
+    if (!quotation) {
+      throw new NotFoundException(`Quotation with ID ${quotationId} not found`);
+    }
+    return quotation;
   }
 
-  async updateByQuotationId(quotationId: string, data: Partial<Quotation>): Promise<Quotation | null> {
-    return this.quotationModel.findOneAndUpdate(
+  async updateByQuotationId(quotationId: string, data: Partial<Quotation>): Promise<Quotation> {
+    const quotation = await this.quotationModel.findOneAndUpdate(
       { quotationId }, 
       data, 
       { new: true }
     ).populate('items.item').exec();
+    
+    if (!quotation) {
+      throw new NotFoundException(`Quotation with ID ${quotationId} not found`);
+    }
+    return quotation;
   }
 
-  async updateStatusByQuotationId(quotationId: string, status: string): Promise<Quotation | null> {
-    return this.quotationModel.findOneAndUpdate(
+  async updateStatusByQuotationId(quotationId: string, status: string): Promise<Quotation> {
+    const quotation = await this.quotationModel.findOneAndUpdate(
       { quotationId }, 
       { status }, 
       { new: true }
     ).populate('items.item').exec();
+    
+    if (!quotation) {
+      throw new NotFoundException(`Quotation with ID ${quotationId} not found`);
+    }
+    return quotation;
   }
 
-  async deleteByQuotationId(quotationId: string): Promise<Quotation | null> {
-    return this.quotationModel.findOneAndDelete({ quotationId }).exec();
+  async deleteByQuotationId(quotationId: string): Promise<Quotation> {
+    const quotation = await this.quotationModel.findOneAndDelete({ quotationId }).exec();
+    if (!quotation) {
+      throw new NotFoundException(`Quotation with ID ${quotationId} not found`);
+    }
+    return quotation;
   }
 }
