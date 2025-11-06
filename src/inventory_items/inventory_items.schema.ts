@@ -18,7 +18,9 @@ export class VehicleInfo {
   year: number;
 }
 
-@Schema()
+@Schema({
+  timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
+})
 export class InventoryItem {
   @Prop({ required: true, unique: true })
   id: string;
@@ -54,10 +56,10 @@ export class InventoryItem {
   @Prop({ required: true })
   shipment_code: string;
 
-  @Prop({ required: true })
+  @Prop()
   created_at: Date;
 
-  @Prop({ required: true })
+  @Prop()
   updated_at: Date;
 }
 
