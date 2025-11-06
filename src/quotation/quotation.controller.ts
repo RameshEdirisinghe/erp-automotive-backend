@@ -24,8 +24,10 @@ export class QuotationController {
     return this.quotationService.findAll();
   }
 
-  @Get('quotation-id/:quotationId')
-  async findByQuotationId(@Param('quotationId') quotationId: string): Promise<Quotation | null> {
+  @Get('/:quotationId')
+  async findByQuotationId(
+    @Param('quotationId') quotationId: string,
+  ): Promise<Quotation | null> {
     return this.quotationService.findByQuotationId(quotationId);
   }
 
@@ -42,11 +44,16 @@ export class QuotationController {
     @Param('quotationId') quotationId: string,
     @Body() body: { status: string },
   ): Promise<Quotation | null> {
-    return this.quotationService.updateStatusByQuotationId(quotationId, body.status);
+    return this.quotationService.updateStatusByQuotationId(
+      quotationId,
+      body.status,
+    );
   }
 
   @Delete('quotation-id/:quotationId')
-  async deleteByQuotationId(@Param('quotationId') quotationId: string): Promise<Quotation | null> {
+  async deleteByQuotationId(
+    @Param('quotationId') quotationId: string,
+  ): Promise<Quotation | null> {
     return this.quotationService.deleteByQuotationId(quotationId);
   }
 }
