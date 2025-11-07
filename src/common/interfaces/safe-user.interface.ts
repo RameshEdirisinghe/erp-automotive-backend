@@ -1,4 +1,3 @@
-
 export interface SafeUser {
   _id: string;
   fullName: string;

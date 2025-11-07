@@ -7,7 +7,7 @@ import { InventoryItem, InventoryItemSchema } from './inventory_items.schema';
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: InventoryItem.name, schema: InventoryItemSchema }
+      { name: InventoryItem.name, schema: InventoryItemSchema },
     ]),
   ],
   controllers: [InventoryItemsController],

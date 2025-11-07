@@ -49,9 +49,9 @@ export class InvoiceService {
     }
 
     const now = new Date();
-    
+
     const issueDate = data.issueDate || now;
-    
+
     const invoice = new this.invoiceModel({
       ...data,
       invoiceId: customId,
@@ -99,13 +99,9 @@ export class InvoiceService {
     if (data.issueDate === null) {
       updateData.issueDate = new Date();
     }
-    
+
     const updated = await this.invoiceModel
-      .findOneAndUpdate(
-        query,
-        updateData,
-        { new: true },
-      )
+      .findOneAndUpdate(query, updateData, { new: true })
       .populate('items.item')
       .exec();
 

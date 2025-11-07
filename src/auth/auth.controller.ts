@@ -60,7 +60,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const refreshToken = req.cookies?.refresh_token;
     if (!refreshToken) throw new UnauthorizedException('No refresh token');
 

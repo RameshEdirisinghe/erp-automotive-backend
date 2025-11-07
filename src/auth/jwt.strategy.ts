@@ -12,7 +12,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         (req: Request) => {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-return
           return (
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             req?.cookies?.access_token ||
             req?.headers?.authorization?.split(' ')[1]
           );
