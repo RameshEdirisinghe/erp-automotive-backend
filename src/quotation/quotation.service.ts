@@ -10,7 +10,7 @@ export class QuotationService {
     private quotationModel: Model<QuotationDocument>,
   ) {}
 
-  private async generateQuotationId(): Promise<string> {
+  async generateQuotationId(): Promise<string> {
     const date = new Date();
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -27,9 +27,25 @@ export class QuotationService {
     return `QUO-${year}-${month}-${day}-${number}`;
   }
 
+  async getNextQuotationId(): Promise<string> {
+    return this.generateQuotationId();
+  }
+
   async create(data: Partial<Quotation>): Promise<Quotation> {
     const quotationId = await this.generateQuotationId();
-    const createdQuotation = new this.quotationModel({ ...data, quotationId });
+    const now = new Date();
+    
+    
+    const issueDate = data.issueDate || now;
+
+    const validUntil = data.validUntil || new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+    
+    const createdQuotation = new this.quotationModel({ 
+      ...data, 
+      quotationId,
+      issueDate,
+      validUntil
+    });
     return createdQuotation.save();
   }
 
@@ -52,8 +68,20 @@ export class QuotationService {
     quotationId: string,
     data: Partial<Quotation>,
   ): Promise<Quotation> {
+
+    const updateData = { ...data };
+    
+    if (data.issueDate === null) {
+      updateData.issueDate = new Date();
+    }
+    
+    if (data.validUntil === null) {
+      const issueDate = updateData.issueDate || data.issueDate || new Date();
+      updateData.validUntil = new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+    }
+
     const quotation = await this.quotationModel
-      .findOneAndUpdate({ quotationId }, data, { new: true })
+      .findOneAndUpdate({ quotationId }, updateData, { new: true })
       .populate('items.item')
       .exec();
 

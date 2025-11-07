@@ -23,6 +23,12 @@ import { UserRole } from '../common/enums/role.enum';
 export class FinanceController {
   constructor(private readonly service: FinanceService) {}
 
+  @Get('next-id')
+  async getNextTransactionId() {
+    const nextId = await this.service.getNextTransactionId();
+    return { nextTransactionId: nextId };
+  }
+
   @Post()
   async create(@Body() body: Partial<Finance>) {
     try {

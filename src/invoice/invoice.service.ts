@@ -14,7 +14,7 @@ export class InvoiceService {
     private readonly invoiceModel: Model<InvoiceDocument>,
   ) {}
 
-  private async getNextInvoiceId(): Promise<string> {
+  async getNextInvoiceId(): Promise<string> {
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -49,9 +49,13 @@ export class InvoiceService {
     }
 
     const now = new Date();
+    
+    const issueDate = data.issueDate || now;
+    
     const invoice = new this.invoiceModel({
       ...data,
       invoiceId: customId,
+      issueDate: issueDate,
       created_at: now,
       updated_at: now,
     });
@@ -90,10 +94,16 @@ export class InvoiceService {
 
   async update(id: string, data: Partial<Invoice>): Promise<Invoice> {
     const query = isValidObjectId(id) ? { _id: id } : { invoiceId: id };
+
+    const updateData = { ...data, updated_at: new Date() };
+    if (data.issueDate === null) {
+      updateData.issueDate = new Date();
+    }
+    
     const updated = await this.invoiceModel
       .findOneAndUpdate(
         query,
-        { ...data, updated_at: new Date() },
+        updateData,
         { new: true },
       )
       .populate('items.item')

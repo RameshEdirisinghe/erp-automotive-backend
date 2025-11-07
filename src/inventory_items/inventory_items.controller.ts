@@ -21,6 +21,12 @@ import { UserRole } from '../common/enums/role.enum';
 export class InventoryItemsController {
   constructor(private readonly service: InventoryItemsService) {}
 
+  @Get('next-id')
+  async getNextInventoryId() {
+    const nextId = await this.service.getNextInventoryId();
+    return { nextInventoryId: nextId };
+  }
+
   @Post()
   async create(@Body() body: Partial<InventoryItem>) {
     return this.service.create(body);
