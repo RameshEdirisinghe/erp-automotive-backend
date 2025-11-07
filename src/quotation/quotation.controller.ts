@@ -23,6 +23,12 @@ import { UserRole } from '../common/enums/role.enum';
 export class QuotationController {
   constructor(private readonly quotationService: QuotationService) {}
 
+  @Get('next-id')
+  async getNextQuotationId() {
+    const nextId = await this.quotationService.getNextQuotationId();
+    return { nextQuotationId: nextId };
+  }
+
   @Post()
   async create(@Body() body: Partial<Quotation>): Promise<Quotation> {
     return this.quotationService.create(body);

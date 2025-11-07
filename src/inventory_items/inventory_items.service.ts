@@ -14,7 +14,7 @@ export class InventoryItemsService {
     private readonly inventoryModel: Model<InventoryItemDocument>,
   ) {}
 
-  private async getNextInventoryId(): Promise<string> {
+  async getNextInventoryId(): Promise<string> {
     const last = await this.inventoryModel
       .findOne({ id: /^INIT\d{6}$/ })
       .sort({ id: -1 })
