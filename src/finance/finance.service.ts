@@ -51,9 +51,9 @@ export class FinanceService {
     }
 
     const now = new Date();
-    
+
     const transactionDate = data.transactionDate || now;
-    
+
     const transaction = new this.financeModel({
       ...data,
       transactionDate: transactionDate,
@@ -79,18 +79,14 @@ export class FinanceService {
 
   async update(id: string, data: Partial<Finance>): Promise<Finance> {
     const query = isValidObjectId(id) ? { _id: id } : { transactionId: id };
-    
+
     const updateData = { ...data, updated_at: new Date() };
     if (data.transactionDate === null) {
       updateData.transactionDate = new Date();
     }
-    
+
     const updated = await this.financeModel
-      .findOneAndUpdate(
-        query,
-        updateData,
-        { new: true },
-      )
+      .findOneAndUpdate(query, updateData, { new: true })
       .exec();
 
     if (!updated) {

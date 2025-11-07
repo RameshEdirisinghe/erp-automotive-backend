@@ -30,7 +30,7 @@ export class InvoiceController {
   async findAll() {
     return this.invoiceService.findAll();
   }
-  
+
   @Get('next-id')
   async getNextInvoiceId() {
     const nextId = await this.invoiceService.getNextInvoiceId();

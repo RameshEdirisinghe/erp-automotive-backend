@@ -5,7 +5,6 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
   app.use(cookieParser());
 
   app.enableCors({
@@ -16,4 +15,8 @@ async function bootstrap() {
   await app.listen(3000);
   console.log('🚀 Server running on http://localhost:3000');
 }
-bootstrap();
+
+bootstrap().catch((err) => {
+  console.error('❌ Error starting server:', err);
+  process.exit(1);
+});

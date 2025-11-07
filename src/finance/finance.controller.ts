@@ -37,6 +37,7 @@ export class FinanceController {
       throw new HttpException(
         {
           statusCode: HttpStatus.BAD_REQUEST,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
           message: error.message,
         },
         HttpStatus.BAD_REQUEST,
@@ -57,6 +58,7 @@ export class FinanceController {
       throw new HttpException(
         {
           statusCode: HttpStatus.NOT_FOUND,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
           message: error.message,
         },
         HttpStatus.NOT_FOUND,
@@ -72,6 +74,7 @@ export class FinanceController {
       throw new HttpException(
         {
           statusCode: HttpStatus.NOT_FOUND,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
           message: error.message,
         },
         HttpStatus.NOT_FOUND,
@@ -87,6 +90,7 @@ export class FinanceController {
       throw new HttpException(
         {
           statusCode: HttpStatus.NOT_FOUND,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
           message: error.message,
         },
         HttpStatus.NOT_FOUND,

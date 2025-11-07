@@ -34,17 +34,18 @@ export class QuotationService {
   async create(data: Partial<Quotation>): Promise<Quotation> {
     const quotationId = await this.generateQuotationId();
     const now = new Date();
-    
-    
+
     const issueDate = data.issueDate || now;
 
-    const validUntil = data.validUntil || new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
-    
-    const createdQuotation = new this.quotationModel({ 
-      ...data, 
+    const validUntil =
+      data.validUntil ||
+      new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    const createdQuotation = new this.quotationModel({
+      ...data,
       quotationId,
       issueDate,
-      validUntil
+      validUntil,
     });
     return createdQuotation.save();
   }
@@ -68,16 +69,17 @@ export class QuotationService {
     quotationId: string,
     data: Partial<Quotation>,
   ): Promise<Quotation> {
-
     const updateData = { ...data };
-    
+
     if (data.issueDate === null) {
       updateData.issueDate = new Date();
     }
-    
+
     if (data.validUntil === null) {
       const issueDate = updateData.issueDate || data.issueDate || new Date();
-      updateData.validUntil = new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+      updateData.validUntil = new Date(
+        issueDate.getTime() + 30 * 24 * 60 * 60 * 1000,
+      );
     }
 
     const quotation = await this.quotationModel
