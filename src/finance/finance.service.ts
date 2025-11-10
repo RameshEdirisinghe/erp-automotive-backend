@@ -6,6 +6,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId } from 'mongoose';
 import { Finance, FinanceDocument } from './finance.schema';
+import { PaymentMethod } from '../common/enums/payment-method.enum';
 
 @Injectable()
 export class FinanceService {

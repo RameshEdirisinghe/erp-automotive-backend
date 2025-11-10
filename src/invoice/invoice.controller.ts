@@ -14,6 +14,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums/role.enum';
+import { PaymentStatus } from '../common/enums/payment-status.enum';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN, UserRole.INVENTORY_MANAGER)
@@ -55,7 +56,7 @@ export class InvoiceController {
   @Put(':id/payment-status')
   async updatePaymentStatus(
     @Param('id') id: string,
-    @Body('paymentStatus') paymentStatus: string,
+   @Body('paymentStatus') paymentStatus: PaymentStatus,
   ) {
     return this.invoiceService.updatePaymentStatus(id, paymentStatus);
   }

@@ -6,6 +6,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId } from 'mongoose';
 import { Invoice, InvoiceDocument } from './invoice.schema';
+import { PaymentStatus } from '../common/enums/payment-status.enum';
 
 @Injectable()
 export class InvoiceService {
@@ -112,7 +113,7 @@ export class InvoiceService {
 
   async updatePaymentStatus(
     id: string,
-    paymentStatus: string,
+    paymentStatus: PaymentStatus,
   ): Promise<Invoice> {
     const query = isValidObjectId(id) ? { _id: id } : { invoiceId: id };
     const updated = await this.invoiceModel
