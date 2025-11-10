@@ -6,6 +6,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId } from 'mongoose';
 import { InventoryItem, InventoryItemDocument } from './inventory_items.schema';
+import { InventoryStatus } from '../common/enums/inventory-status.enum';
 
 @Injectable()
 export class InventoryItemsService {

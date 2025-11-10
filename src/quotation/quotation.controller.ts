@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums/role.enum';
+import { QuotationStatus } from '../common/enums/quotation-status.enum';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN, UserRole.INVENTORY_MANAGER)
@@ -75,7 +76,7 @@ export class QuotationController {
   @Put('/:quotationId/status')
   async updateStatusByQuotationId(
     @Param('quotationId') quotationId: string,
-    @Body() body: { status: string },
+    @Body() body: { status: QuotationStatus }, 
   ): Promise<Quotation> {
     try {
       return await this.quotationService.updateStatusByQuotationId(

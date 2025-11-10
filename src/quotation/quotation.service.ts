@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Quotation, QuotationDocument } from './quotation.schema';
+import { QuotationStatus } from '../common/enums/quotation-status.enum';
 
 @Injectable()
 export class QuotationService {
@@ -94,7 +95,7 @@ export class QuotationService {
 
   async updateStatusByQuotationId(
     quotationId: string,
-    status: string,
+    status: QuotationStatus,
   ): Promise<Quotation> {
     const quotation = await this.quotationModel
       .findOneAndUpdate({ quotationId }, { status }, { new: true })

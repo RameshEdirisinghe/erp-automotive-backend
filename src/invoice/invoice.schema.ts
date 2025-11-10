@@ -1,5 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema } from 'mongoose';
+import { PaymentStatus } from '../common/enums/payment-status.enum';
+import { PaymentMethod } from '../common/enums/payment-method.enum';
 
 export type InvoiceDocument = Invoice & Document;
 
@@ -56,16 +58,16 @@ export class Invoice {
 
   @Prop({
     required: true,
-    enum: ['Pending', 'Completed', 'Rejected'],
-    default: 'Pending',
+    enum: PaymentStatus,
+    default: PaymentStatus.PENDING,
   })
-  paymentStatus: string;
+  paymentStatus: PaymentStatus;
 
   @Prop({
     required: true,
-    enum: ['Cash', 'Card', 'Bank Deposit', 'Cheque'],
+    enum: PaymentMethod,
   })
-  paymentMethod: string;
+  paymentMethod: PaymentMethod;
 
   @Prop({ type: Date })
   bankDepositDate?: Date;

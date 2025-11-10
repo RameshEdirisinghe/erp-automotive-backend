@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+import { InventoryStatus } from '../common/enums/inventory-status.enum';
 
 export type InventoryItemDocument = InventoryItem & Document;
 
@@ -39,10 +40,10 @@ export class InventoryItem {
 
   @Prop({
     required: true,
-    enum: ['in_stock', 'out_of_stock', 'discontinued'],
-    default: 'in_stock',
+    enum: InventoryStatus,
+    default: InventoryStatus.IN_STOCK,
   })
-  status: string;
+  status: InventoryStatus;
 
   @Prop({ type: VehicleInfo, required: true })
   vehicle: VehicleInfo;

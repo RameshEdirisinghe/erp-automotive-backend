@@ -1,5 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema } from 'mongoose';
+import { PaymentMethod } from '../common/enums/payment-method.enum';
+import { QuotationStatus } from '../common/enums/quotation-status.enum';
 
 export type QuotationDocument = Quotation & Document;
 
@@ -54,9 +56,9 @@ export class Quotation {
 
   @Prop({
     required: true,
-    enum: ['Cash', 'Card', 'Bank Deposit', 'Cheque'],
+    enum: PaymentMethod,
   })
-  paymentMethod: string;
+  paymentMethod: PaymentMethod;
 
   @Prop({ required: true, type: Date })
   issueDate: Date;
@@ -66,10 +68,10 @@ export class Quotation {
 
   @Prop({
     required: true,
-    enum: ['Pending', 'Accepted', 'Rejected', 'Expired'],
-    default: 'Pending',
+    enum: QuotationStatus,
+    default: QuotationStatus.PENDING,
   })
-  status: string;
+  status: QuotationStatus;
 
   @Prop({ type: String })
   notes?: string;
