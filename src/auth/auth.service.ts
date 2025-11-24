@@ -79,11 +79,7 @@ export class AuthService {
 
   async login(
     dto: { email: string; password: string },
-    resSetCookie?: (
-      name: string,
-      value: string,
-      opts: Record<string, unknown>,
-    ) => void,
+    p0: (name: string, value: string, opts?: Record<string, unknown>) => void,
   ): Promise<{
     user: SafeUser;
     tokens: { accessToken: string; refreshToken: string };
@@ -95,19 +91,6 @@ export class AuthService {
     const tokens = await this.getTokens(userId, user.role);
     const refreshTokenHash = await this.hash(tokens.refreshToken);
     await this.usersService.setRefreshToken(userId, refreshTokenHash);
-
-    if (resSetCookie) {
-      resSetCookie('access_token', tokens.accessToken, {
-        httpOnly: true,
-        sameSite: 'lax',
-        maxAge: 15 * 60 * 1000,
-      });
-      resSetCookie('refresh_token', tokens.refreshToken, {
-        httpOnly: true,
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-    }
 
     const userObj = user.toObject() as User & { _id: string };
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
