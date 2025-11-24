@@ -48,7 +48,7 @@ export class AuthController {
     return this.authService.login(dto, (name, value, opts) => {
       res.cookie(name, value, {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: 'none',
         ...opts,
       });
     });
@@ -89,7 +89,7 @@ export class AuthController {
     });
     res.cookie('refresh_token', tokens.refreshToken, {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: 'none',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
