@@ -8,7 +8,10 @@ async function bootstrap() {
   app.use(cookieParser());
 
   app.enableCors({
-    origin: 'https://erp-automotive-frontend.vercel.app',
+    origin: [
+    'https://erp-automotive-frontend.vercel.app',
+    'http://localhost:5173'
+   ],
     credentials: true,
   });
 
