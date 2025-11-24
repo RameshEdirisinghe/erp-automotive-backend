@@ -7,6 +7,12 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId } from 'mongoose';
 import { Invoice, InvoiceDocument } from './invoice.schema';
 import { PaymentStatus } from '../common/enums/payment-status.enum';
+import { SalesOverviewResponseDto, WeeklySalesDto } from './dto/sales-overview.dto';
+
+interface WeekRange {
+  start: Date;
+  end: Date;
+}
 
 @Injectable()
 export class InvoiceService {
@@ -14,6 +20,80 @@ export class InvoiceService {
     @InjectModel(Invoice.name)
     private readonly invoiceModel: Model<InvoiceDocument>,
   ) {}
+
+  async getSalesOverview(): Promise<SalesOverviewResponseDto> {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(today.getMonth() - 1);
+    oneMonthAgo.setHours(0, 0, 0, 0);
+
+    const invoices = await this.invoiceModel
+      .find({
+        paymentStatus: PaymentStatus.COMPLETED,
+        issueDate: {
+          $gte: oneMonthAgo,
+          $lte: today,
+        },
+      })
+      .populate('items.item')
+      .exec();
+
+    const weeks = this.calculateWeeks(oneMonthAgo, today);
+    
+    const weeklyData: WeeklySalesDto[] = weeks.map((week, index) => {
+      const weekInvoices = invoices.filter(invoice => {
+        const invoiceDate = new Date(invoice.issueDate);
+        return invoiceDate >= week.start && invoiceDate <= week.end;
+      });
+
+      const sales = weekInvoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0);
+      const products = weekInvoices.reduce((sum, invoice) => 
+        sum + invoice.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
+
+      return {
+        week: `Week ${index + 1}`,
+        sales,
+        products,
+      };
+    });
+
+    const totalSales = invoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0);
+    const totalProducts = invoices.reduce((sum, invoice) => 
+      sum + invoice.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
+
+    return {
+      period: `${oneMonthAgo.toLocaleDateString()} - ${today.toLocaleDateString()}`,
+      totalSales,
+      totalProducts,
+      weeklyData,
+    };
+  }
+
+  private calculateWeeks(startDate: Date, endDate: Date): WeekRange[] {
+    const weeks: WeekRange[] = [];
+    const current = new Date(startDate);
+    
+    let weekCount = 1;
+    while (current <= endDate && weekCount <= 4) {
+      const weekStart = new Date(current);
+      const weekEnd = new Date(current);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+
+      const actualWeekEnd = weekEnd > endDate ? new Date(endDate) : weekEnd;
+      
+      weeks.push({
+        start: new Date(weekStart),
+        end: new Date(actualWeekEnd),
+      });
+
+      current.setDate(current.getDate() + 7);
+      weekCount++;
+    }
+
+    return weeks;
+  }
 
   async getNextInvoiceId(): Promise<string> {
     const now = new Date();

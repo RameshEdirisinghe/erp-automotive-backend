@@ -15,12 +15,19 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums/role.enum';
 import { PaymentStatus } from '../common/enums/payment-status.enum';
+import { SalesOverviewResponseDto } from './dto/sales-overview.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN, UserRole.INVENTORY_MANAGER)
 @Controller('invoices')
 export class InvoiceController {
   constructor(private readonly invoiceService: InvoiceService) {}
+
+  // Sales overview endpoint
+  @Get('analytics/sales-overview')
+  async getSalesOverview(): Promise<SalesOverviewResponseDto> {
+    return this.invoiceService.getSalesOverview();
+  }
 
   @Post()
   async create(@Body() body: Partial<Invoice>) {
@@ -56,7 +63,7 @@ export class InvoiceController {
   @Put(':id/payment-status')
   async updatePaymentStatus(
     @Param('id') id: string,
-   @Body('paymentStatus') paymentStatus: PaymentStatus,
+    @Body('paymentStatus') paymentStatus: PaymentStatus,
   ) {
     return this.invoiceService.updatePaymentStatus(id, paymentStatus);
   }
