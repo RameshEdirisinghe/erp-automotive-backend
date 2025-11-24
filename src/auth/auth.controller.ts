@@ -36,7 +36,10 @@ export class AuthController {
     @Body() dto: AuthRegisterDto,
   ) {
     const adminUserId = req.user?.userId ?? req.user?.sub;
-    return this.authService.register(adminUserId!, dto);
+    if (!adminUserId) {
+      throw new UnauthorizedException('Admin user not found');
+    }
+    return this.authService.register(adminUserId, dto);
   }
 
   @HttpCode(HttpStatus.OK)
@@ -45,14 +48,17 @@ export class AuthController {
     @Body() dto: AuthLoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.login(dto, (name, value, opts) => {
-      res.cookie(name, value, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'none',
-        ...opts,
-      });
-    });
+    return this.authService.login(
+      dto,
+      (name: string, value: string, opts?: Record<string, unknown>) => {
+        res.cookie(name, value, {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'none',
+          ...opts,
+        });
+      },
+    );
   }
 
   @HttpCode(HttpStatus.OK)
@@ -63,15 +69,16 @@ export class AuthController {
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const refreshToken = req.cookies?.refresh_token;
-    if (!refreshToken) throw new UnauthorizedException('No refresh token');
+    if (!refreshToken) {
+      throw new UnauthorizedException('No refresh token');
+    }
 
     const jwtService: JwtService = this.authService['jwtService'];
-    let payload: JwtPayload;
 
+    let payload: JwtPayload;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       payload = jwtService.verify<JwtPayload>(refreshToken, {
-        secret: process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
+        secret: process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET,
       });
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
@@ -79,7 +86,6 @@ export class AuthController {
 
     const tokens = await this.authService.refreshTokens(
       payload.sub,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       refreshToken,
     );
 
@@ -87,13 +93,14 @@ export class AuthController {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: 15 * 60 * 1000,
+      maxAge: 15 * 60 * 1000, // 15 minutes
     });
+
     res.cookie('refresh_token', tokens.refreshToken, {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
     return { accessToken: tokens.accessToken };
@@ -106,9 +113,14 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const userId = req.user?.userId ?? req.user?.sub;
-    await this.authService.logout(userId!);
+    if (!userId) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    await this.authService.logout(userId);
     res.clearCookie('access_token');
     res.clearCookie('refresh_token');
+
     return { success: true };
   }
 }
