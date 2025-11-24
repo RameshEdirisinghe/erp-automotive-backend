@@ -9,13 +9,15 @@ async function bootstrap() {
 
   app.enableCors({
     origin: [
-    'https://erp-automotive-frontend.vercel.app',
-    'http://localhost:5173'
-   ],
+      'http://localhost:5173',
+      'https://erp-automotive-backend.vercel.app',
+    ],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
+    allowedHeaders: 'Content-Type, Authorization',
   });
 
-  await app.listen(3000);
+  await app.listen(3000, '0.0.0.0');
   console.log('🚀 Server running on http://localhost:3000');
 }
 

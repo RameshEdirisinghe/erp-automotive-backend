@@ -77,10 +77,7 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async login(
-    dto: { email: string; password: string },
-    p0: (name: string, value: string, opts?: Record<string, unknown>) => void,
-  ): Promise<{
+  async login(dto: { email: string; password: string }): Promise<{
     user: SafeUser;
     tokens: { accessToken: string; refreshToken: string };
   }> {

@@ -48,17 +48,16 @@ export class AuthController {
     @Body() dto: AuthLoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.login(
-      dto,
-      (name: string, value: string, opts?: Record<string, unknown>) => {
-        res.cookie(name, value, {
-          httpOnly: true,
-          secure: true,
-          sameSite: 'none',
-          ...opts,
-        });
-      },
-    );
+    const login1 = await this.authService.login(dto);
+
+    // Correct path to accessToken
+    res.cookie('access_token', login1.tokens.accessToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+    });
+
+    return login1; // return the user + tokens if you want
   }
 
   @HttpCode(HttpStatus.OK)
