@@ -10,7 +10,7 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'http://localhost:5173',
-      'https://erp-automotive-backend.vercel.app',
+      'https://erp-automotive-frontend.vercel.app',
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
