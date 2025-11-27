@@ -25,11 +25,7 @@ interface AuthenticatedRequest extends Request {
 
 @Controller('auth')
 export class AuthController {
-  private readonly isProduction: boolean;
-
-  constructor(private readonly authService: AuthService) {
-    this.isProduction = process.env.NODE_ENV === 'production';
-  }
+  constructor(private readonly authService: AuthService) {}
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
@@ -51,17 +47,20 @@ export class AuthController {
   ) {
     const { user, tokens } = await this.authService.login(dto);
 
-    res.cookie('access_token', tokens.accessToken, {
+    const cookieOptions = {
       httpOnly: true,
-      secure: this.isProduction,
-      sameSite: this.isProduction ? 'none' : 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as
+        | 'lax'
+        | 'strict'
+        | 'none',
       maxAge: 15 * 60 * 1000,
-    });
+      path: '/',
+    };
 
+    res.cookie('access_token', tokens.accessToken, cookieOptions);
     res.cookie('refresh_token', tokens.refreshToken, {
-      httpOnly: true,
-      secure: this.isProduction,
-      sameSite: this.isProduction ? 'none' : 'lax',
+      ...cookieOptions,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -74,23 +73,26 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const refreshToken = req.cookies?.refresh_token;
+    const refreshToken = (req.cookies as Record<string, string> | undefined)
+      ?.refresh_token;
     if (!refreshToken) throw new UnauthorizedException('No refresh token');
 
     const tokens = await this.authService.refreshTokensFromCookie(refreshToken);
 
-    res.cookie('access_token', tokens.accessToken, {
+    const cookieOptions = {
       httpOnly: true,
-      secure: this.isProduction,
-      sameSite: this.isProduction ? 'none' : 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as
+        | 'lax'
+        | 'strict'
+        | 'none',
       maxAge: 15 * 60 * 1000,
-    });
+      path: '/',
+    };
 
+    res.cookie('access_token', tokens.accessToken, cookieOptions);
     res.cookie('refresh_token', tokens.refreshToken, {
-      httpOnly: true,
-      secure: this.isProduction,
-      sameSite: this.isProduction ? 'none' : 'lax',
+      ...cookieOptions,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -107,8 +109,9 @@ export class AuthController {
     if (!userId) throw new UnauthorizedException('User not found');
 
     await this.authService.logout(userId);
-    res.clearCookie('access_token');
-    res.clearCookie('refresh_token');
+
+    res.clearCookie('access_token', { path: '/' });
+    res.clearCookie('refresh_token', { path: '/' });
 
     return { success: true };
   }

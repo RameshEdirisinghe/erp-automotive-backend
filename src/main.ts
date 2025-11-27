@@ -8,15 +8,14 @@ async function bootstrap() {
   app.use(cookieParser());
 
   app.enableCors({
-    origin: [
-      'http://localhost:5173',
-      'https://erp-automotive-frontend.vercel.app',
-    ],
+    origin: [process.env.FRONTEND_LOCAL, process.env.FRONTEND_PROD],
     credentials: true,
   });
 
-  await app.listen(3000, '0.0.0.0');
-  console.log('🚀 Server running on http://localhost:3000');
+  await app.listen(process.env.PORT || 3000, '0.0.0.0');
+  console.log(
+    `🚀 Server running on http://localhost:${process.env.PORT || 3000}`,
+  );
 }
 
 bootstrap().catch((err) => {
