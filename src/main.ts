@@ -12,9 +12,7 @@ async function bootstrap() {
       'http://localhost:5173',
       'https://erp-automotive-frontend.vercel.app',
     ],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
-    allowedHeaders: 'Content-Type, Authorization',
   });
 
   await app.listen(3000, '0.0.0.0');
