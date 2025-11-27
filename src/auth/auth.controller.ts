@@ -25,7 +25,11 @@ interface AuthenticatedRequest extends Request {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  private readonly isProduction: boolean;
+
+  constructor(private readonly authService: AuthService) {
+    this.isProduction = process.env.NODE_ENV === 'production';
+  }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
@@ -35,9 +39,7 @@ export class AuthController {
     @Body() dto: AuthRegisterDto,
   ) {
     const adminUserId = req.user?.userId ?? req.user?.sub;
-    if (!adminUserId) {
-      throw new UnauthorizedException('Admin user not found');
-    }
+    if (!adminUserId) throw new UnauthorizedException('Admin user not found');
     return this.authService.register(adminUserId, dto);
   }
 
@@ -49,19 +51,18 @@ export class AuthController {
   ) {
     const { user, tokens } = await this.authService.login(dto);
 
-    // Set cookies
     res.cookie('access_token', tokens.accessToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      maxAge: 15 * 60 * 1000, // 15 minutes
+      secure: this.isProduction,
+      sameSite: this.isProduction ? 'none' : 'lax',
+      maxAge: 15 * 60 * 1000,
     });
 
     res.cookie('refresh_token', tokens.refreshToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      secure: this.isProduction,
+      sameSite: this.isProduction ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     return { user };
@@ -77,21 +78,19 @@ export class AuthController {
     const refreshToken = req.cookies?.refresh_token;
     if (!refreshToken) throw new UnauthorizedException('No refresh token');
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const tokens = await this.authService.refreshTokensFromCookie(refreshToken);
 
-    // Update cookies
     res.cookie('access_token', tokens.accessToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
+      secure: this.isProduction,
+      sameSite: this.isProduction ? 'none' : 'lax',
       maxAge: 15 * 60 * 1000,
     });
 
     res.cookie('refresh_token', tokens.refreshToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
+      secure: this.isProduction,
+      sameSite: this.isProduction ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -108,8 +107,6 @@ export class AuthController {
     if (!userId) throw new UnauthorizedException('User not found');
 
     await this.authService.logout(userId);
-
-    // Clear cookies
     res.clearCookie('access_token');
     res.clearCookie('refresh_token');
 
