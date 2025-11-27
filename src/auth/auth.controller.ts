@@ -17,7 +17,6 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums/role.enum';
 import { RolesGuard } from '../common/guards/roles.guard';
 import type { Request, Response } from 'express';
-import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from '../common/interfaces/jwt-payload.interface';
 
 interface AuthenticatedRequest extends Request {
@@ -36,7 +35,10 @@ export class AuthController {
     @Body() dto: AuthRegisterDto,
   ) {
     const adminUserId = req.user?.userId ?? req.user?.sub;
-    return this.authService.register(adminUserId!, dto);
+    if (!adminUserId) {
+      throw new UnauthorizedException('Admin user not found');
+    }
+    return this.authService.register(adminUserId, dto);
   }
 
   @HttpCode(HttpStatus.OK)
@@ -45,13 +47,24 @@ export class AuthController {
     @Body() dto: AuthLoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.login(dto, (name, value, opts) => {
-      res.cookie(name, value, {
-        httpOnly: true,
-        sameSite: 'lax',
-        ...opts,
-      });
+    const { user, tokens } = await this.authService.login(dto);
+
+    // Set cookies
+    res.cookie('access_token', tokens.accessToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: 15 * 60 * 1000, // 15 minutes
     });
+
+    res.cookie('refresh_token', tokens.refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    return { user };
   }
 
   @HttpCode(HttpStatus.OK)
@@ -64,36 +77,25 @@ export class AuthController {
     const refreshToken = req.cookies?.refresh_token;
     if (!refreshToken) throw new UnauthorizedException('No refresh token');
 
-    const jwtService: JwtService = this.authService['jwtService'];
-    let payload: JwtPayload;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    const tokens = await this.authService.refreshTokensFromCookie(refreshToken);
 
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      payload = jwtService.verify<JwtPayload>(refreshToken, {
-        secret: process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
-      });
-    } catch {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
-
-    const tokens = await this.authService.refreshTokens(
-      payload.sub,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      refreshToken,
-    );
-
+    // Update cookies
     res.cookie('access_token', tokens.accessToken, {
       httpOnly: true,
-      sameSite: 'lax',
+      secure: true,
+      sameSite: 'none',
       maxAge: 15 * 60 * 1000,
     });
+
     res.cookie('refresh_token', tokens.refreshToken, {
       httpOnly: true,
-      sameSite: 'lax',
+      secure: true,
+      sameSite: 'none',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    return { accessToken: tokens.accessToken };
+    return { success: true };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -103,9 +105,14 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const userId = req.user?.userId ?? req.user?.sub;
-    await this.authService.logout(userId!);
+    if (!userId) throw new UnauthorizedException('User not found');
+
+    await this.authService.logout(userId);
+
+    // Clear cookies
     res.clearCookie('access_token');
     res.clearCookie('refresh_token');
+
     return { success: true };
   }
 }

@@ -39,9 +39,14 @@ export class AuthService {
     };
 
     const created = await this.usersService.create(userPayload);
-    const userObj = created.toObject() as User & { _id: string };
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { passwordHash: _pw, refreshTokenHash: _rt, ...safeUser } = userObj;
+    const {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      passwordHash: _pw,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      refreshTokenHash: _rt,
+      ...safeUser
+    } = created.toObject() as User & { _id: string };
+
     return safeUser;
   }
 
@@ -51,8 +56,9 @@ export class AuthService {
   ): Promise<UserDocument | null> {
     const user = await this.usersService.findByEmail(email);
     if (!user) return null;
-    const match = await bcrypt.compare(password, user.passwordHash);
-    return match ? user : null;
+
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
+    return isMatch ? user : null;
   }
 
   private async getTokens(
@@ -77,50 +83,44 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async login(
-    dto: { email: string; password: string },
-    resSetCookie?: (
-      name: string,
-      value: string,
-      opts: Record<string, unknown>,
-    ) => void,
-  ): Promise<{
+  async login(dto: { email: string; password: string }): Promise<{
     user: SafeUser;
     tokens: { accessToken: string; refreshToken: string };
   }> {
     const user = await this.validateUser(dto.email, dto.password);
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
-    const userId = user._id.toString();
-    const tokens = await this.getTokens(userId, user.role);
+    const tokens = await this.getTokens(user._id.toString(), user.role);
     const refreshTokenHash = await this.hash(tokens.refreshToken);
-    await this.usersService.setRefreshToken(userId, refreshTokenHash);
+    await this.usersService.setRefreshToken(
+      user._id.toString(),
+      refreshTokenHash,
+    );
 
-    if (resSetCookie) {
-      resSetCookie('access_token', tokens.accessToken, {
-        httpOnly: true,
-        sameSite: 'lax',
-        maxAge: 15 * 60 * 1000,
-      });
-      resSetCookie('refresh_token', tokens.refreshToken, {
-        httpOnly: true,
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-    }
-
-    const userObj = user.toObject() as User & { _id: string };
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { passwordHash, refreshTokenHash: _rt, ...safeUser } = userObj;
+    const {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      passwordHash,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      refreshTokenHash: _rt,
+      ...safeUser
+    } = user.toObject() as User & { _id: string };
 
     return { user: safeUser, tokens };
   }
 
-  async refreshTokens(
-    userId: string,
+  async refreshTokensFromCookie(
     providedRefreshToken: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    const user = await this.usersService.findByUserId(userId);
+    let payload: { sub: string };
+    try {
+      payload = this.jwtService.verify(providedRefreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET!,
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const user = await this.usersService.findByUserId(payload.sub);
     if (!user || !user.refreshTokenHash)
       throw new UnauthorizedException('Please login');
 
@@ -130,15 +130,17 @@ export class AuthService {
     );
     if (!isValid) throw new UnauthorizedException('Invalid refresh token');
 
-    const tokens = await this.getTokens(userId, user.role);
+    const tokens = await this.getTokens(user._id.toString(), user.role);
     const newRefreshHash = await this.hash(tokens.refreshToken);
-    await this.usersService.setRefreshToken(userId, newRefreshHash);
+    await this.usersService.setRefreshToken(
+      user._id.toString(),
+      newRefreshHash,
+    );
 
     return tokens;
   }
 
-  async logout(userId: string): Promise<boolean> {
+  async logout(userId: string): Promise<void> {
     await this.usersService.setRefreshToken(userId, null);
-    return true;
   }
 }
