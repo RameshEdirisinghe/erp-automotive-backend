@@ -20,7 +20,7 @@ import { FinanceModule } from './finance/finance.module';
     InvoiceModule,
     QuotationModule,
     AuthModule,
-    FinanceModule, 
+    FinanceModule,
   ],
 })
 export class AppModule {}
