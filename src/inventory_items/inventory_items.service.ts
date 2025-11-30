@@ -6,7 +6,6 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId } from 'mongoose';
 import { InventoryItem, InventoryItemDocument } from './inventory_items.schema';
-import { InventoryStatus } from '../common/enums/inventory-status.enum';
 
 @Injectable()
 export class InventoryItemsService {
@@ -25,7 +24,7 @@ export class InventoryItemsService {
     let nextNum = 1;
 
     if (last?.id) {
-      const num = parseInt(last.id.slice(4), 10);
+      const num = Number.parseInt(last.id.slice(4), 10);
       nextNum = num + 1;
     }
 
