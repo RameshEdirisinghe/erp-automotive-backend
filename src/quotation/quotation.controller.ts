@@ -76,7 +76,7 @@ export class QuotationController {
   @Put('/:quotationId/status')
   async updateStatusByQuotationId(
     @Param('quotationId') quotationId: string,
-    @Body() body: { status: QuotationStatus }, 
+    @Body() body: { status: QuotationStatus },
   ): Promise<Quotation> {
     try {
       return await this.quotationService.updateStatusByQuotationId(

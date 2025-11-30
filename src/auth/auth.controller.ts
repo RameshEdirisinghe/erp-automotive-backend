@@ -27,6 +27,27 @@ interface AuthenticatedRequest extends Request {
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  private getCookieOptions(maxAge: number) {
+    return {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as
+        | 'lax'
+        | 'strict'
+        | 'none',
+      maxAge,
+      path: '/',
+    };
+  }
+
+  private setAuthCookies(res: Response, access: string, refresh: string) {
+    const accessOptions = this.getCookieOptions(15 * 60 * 1000); // 15 min
+    const refreshOptions = this.getCookieOptions(7 * 24 * 60 * 60 * 1000); // 7 days
+
+    res.cookie('access_token', access, accessOptions);
+    res.cookie('refresh_token', refresh, refreshOptions);
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Post('register')
@@ -47,22 +68,7 @@ export class AuthController {
   ) {
     const { user, tokens } = await this.authService.login(dto);
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as
-        | 'lax'
-        | 'strict'
-        | 'none',
-      maxAge: 15 * 60 * 1000,
-      path: '/',
-    };
-
-    res.cookie('access_token', tokens.accessToken, cookieOptions);
-    res.cookie('refresh_token', tokens.refreshToken, {
-      ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    this.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
 
     return { user };
   }
@@ -75,26 +81,12 @@ export class AuthController {
   ) {
     const refreshToken = (req.cookies as Record<string, string> | undefined)
       ?.refresh_token;
+
     if (!refreshToken) throw new UnauthorizedException('No refresh token');
 
     const tokens = await this.authService.refreshTokensFromCookie(refreshToken);
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as
-        | 'lax'
-        | 'strict'
-        | 'none',
-      maxAge: 15 * 60 * 1000,
-      path: '/',
-    };
-
-    res.cookie('access_token', tokens.accessToken, cookieOptions);
-    res.cookie('refresh_token', tokens.refreshToken, {
-      ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    this.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
 
     return { success: true };
   }
