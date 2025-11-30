@@ -7,7 +7,10 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId } from 'mongoose';
 import { Invoice, InvoiceDocument } from './invoice.schema';
 import { PaymentStatus } from '../common/enums/payment-status.enum';
-import { SalesOverviewResponseDto, WeeklySalesDto } from './dto/sales-overview.dto';
+import {
+  SalesOverviewResponseDto,
+  WeeklySalesDto,
+} from './dto/sales-overview.dto';
 
 interface WeekRange {
   start: Date;
@@ -24,7 +27,7 @@ export class InvoiceService {
   async getSalesOverview(): Promise<SalesOverviewResponseDto> {
     const today = new Date();
     today.setHours(23, 59, 59, 999);
-    
+
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(today.getMonth() - 1);
     oneMonthAgo.setHours(0, 0, 0, 0);
@@ -41,16 +44,23 @@ export class InvoiceService {
       .exec();
 
     const weeks = this.calculateWeeks(oneMonthAgo, today);
-    
+
     const weeklyData: WeeklySalesDto[] = weeks.map((week, index) => {
-      const weekInvoices = invoices.filter(invoice => {
+      const weekInvoices = invoices.filter((invoice) => {
         const invoiceDate = new Date(invoice.issueDate);
         return invoiceDate >= week.start && invoiceDate <= week.end;
       });
 
-      const sales = weekInvoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0);
-      const products = weekInvoices.reduce((sum, invoice) => 
-        sum + invoice.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
+      const sales = weekInvoices.reduce(
+        (sum, invoice) => sum + invoice.totalAmount,
+        0,
+      );
+      const products = weekInvoices.reduce(
+        (sum, invoice) =>
+          sum +
+          invoice.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
+        0,
+      );
 
       return {
         week: `Week ${index + 1}`,
@@ -59,9 +69,16 @@ export class InvoiceService {
       };
     });
 
-    const totalSales = invoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0);
-    const totalProducts = invoices.reduce((sum, invoice) => 
-      sum + invoice.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
+    const totalSales = invoices.reduce(
+      (sum, invoice) => sum + invoice.totalAmount,
+      0,
+    );
+    const totalProducts = invoices.reduce(
+      (sum, invoice) =>
+        sum +
+        invoice.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
+      0,
+    );
 
     return {
       period: `${oneMonthAgo.toLocaleDateString()} - ${today.toLocaleDateString()}`,
@@ -74,7 +91,7 @@ export class InvoiceService {
   private calculateWeeks(startDate: Date, endDate: Date): WeekRange[] {
     const weeks: WeekRange[] = [];
     const current = new Date(startDate);
-    
+
     let weekCount = 1;
     while (current <= endDate && weekCount <= 4) {
       const weekStart = new Date(current);
@@ -82,7 +99,7 @@ export class InvoiceService {
       weekEnd.setDate(weekEnd.getDate() + 6);
 
       const actualWeekEnd = weekEnd > endDate ? new Date(endDate) : weekEnd;
-      
+
       weeks.push({
         start: new Date(weekStart),
         end: new Date(actualWeekEnd),
@@ -102,7 +119,7 @@ export class InvoiceService {
     const day = String(now.getDate()).padStart(2, '0');
 
     const datePrefix = `${year}-${month}-${day}`;
-    const basePattern = new RegExp(`^INV-${datePrefix}-\\d{4}$`);
+    const basePattern = new RegExp(String.raw`^INV-${datePrefix}-\d{4}$`);
 
     const lastInvoice = await this.invoiceModel
       .findOne({ invoiceId: basePattern })
@@ -113,7 +130,7 @@ export class InvoiceService {
     let nextNumber = 1;
     if (lastInvoice?.invoiceId) {
       const parts = lastInvoice.invoiceId.split('-');
-      const lastNum = parseInt(parts[4], 10);
+      const lastNum = Number.parseInt(parts[4], 10);
       nextNumber = lastNum + 1;
     }
 
