@@ -6,7 +6,6 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId } from 'mongoose';
 import { Finance, FinanceDocument } from './finance.schema';
-import { PaymentMethod } from '../common/enums/payment-method.enum';
 
 @Injectable()
 export class FinanceService {
@@ -22,7 +21,7 @@ export class FinanceService {
     const day = String(now.getDate()).padStart(2, '0');
 
     const datePrefix = `${year}-${month}-${day}`;
-    const basePattern = new RegExp(`^TXN-${datePrefix}-\\d{5}$`);
+    const basePattern = new RegExp(String.raw`^TXN-${datePrefix}-\d{5}$`);
 
     const lastTransaction = await this.financeModel
       .findOne({ transactionId: basePattern })
@@ -33,7 +32,7 @@ export class FinanceService {
     let nextNumber = 1;
     if (lastTransaction?.transactionId) {
       const parts = lastTransaction.transactionId.split('-');
-      const lastNum = parseInt(parts[3], 10);
+      const lastNum = Number.parseInt(parts[3], 10);
       nextNumber = lastNum + 1;
     }
 
