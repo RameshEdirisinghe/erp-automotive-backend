@@ -8,7 +8,7 @@ import { QuotationStatus } from '../common/enums/quotation-status.enum';
 export class QuotationService {
   constructor(
     @InjectModel(Quotation.name)
-    private quotationModel: Model<QuotationDocument>,
+    private readonly quotationModel: Model<QuotationDocument>,
   ) {}
 
   async generateQuotationId(): Promise<string> {
