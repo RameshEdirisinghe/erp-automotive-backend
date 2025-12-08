@@ -54,6 +54,16 @@ export class InventoryItem {
   @Prop({ required: true })
   sell_price: number;
 
+  @Prop({ default: 0 })
+  discount_rate: number;
+
+  @Prop({
+    default: function (this: InventoryItem) {
+      return this.sell_price * (1 - (this.discount_rate || 0) / 100);
+    },
+  })
+  actual_sold_price: number;
+
   @Prop({ required: true })
   shipment_code: string;
 
