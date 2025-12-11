@@ -1,14 +1,29 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { isValidObjectId, Model } from 'mongoose';
 import { Quotation, QuotationDocument } from './quotation.schema';
 import { QuotationStatus } from '../common/enums/quotation-status.enum';
+import { Customer, CustomerDocument } from '../customer/customer.schema';
+import {
+  InventoryItem,
+  InventoryItemDocument,
+} from '../inventory_items/inventory_items.schema';
 
 @Injectable()
 export class QuotationService {
   constructor(
     @InjectModel(Quotation.name)
     private readonly quotationModel: Model<QuotationDocument>,
+
+    @InjectModel(Customer.name)
+    private readonly customerModel: Model<CustomerDocument>,
+
+    @InjectModel(InventoryItem.name)
+    private readonly inventoryItemModel: Model<InventoryItemDocument>,
   ) {}
 
   async generateQuotationId(): Promise<string> {
@@ -33,6 +48,43 @@ export class QuotationService {
   }
 
   async create(data: Partial<Quotation>): Promise<Quotation> {
+    //validate customer id
+    if (!data.customer || !isValidObjectId(data.customer)) {
+      throw new BadRequestException('Invalid or missing customer ID.');
+    }
+
+    const customerExists = await this.customerModel.exists({
+      _id: data.customer,
+    });
+
+    if (!customerExists) {
+      throw new BadRequestException(
+        'Customer ID does not exist. Please provide an existing customer ID.',
+      );
+    }
+
+    //validate InventoryItems Ids
+    if (!data.items || data.items.length === 0) {
+      throw new BadRequestException('Invoice must contain at least one item');
+    }
+
+    const itemIds = data.items.map((i) => i.item);
+
+    for (const id of itemIds) {
+      if (!isValidObjectId(id)) {
+        throw new BadRequestException(`Invalid inventory item ID: ${id}`);
+      }
+    }
+
+    const existingItemsCount = await this.inventoryItemModel.countDocuments({
+      _id: { $in: itemIds },
+    });
+
+    if (existingItemsCount !== itemIds.length) {
+      throw new BadRequestException(
+        'One or more inventory item IDs do not exist.',
+      );
+    }
     const quotationId = await this.generateQuotationId();
     const now = new Date();
 
