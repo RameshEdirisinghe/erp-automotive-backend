@@ -8,7 +8,8 @@ export type FinanceDocument = Finance & Document;
 export class PaymentMethodDetails {
   @Prop({
     required: true,
-    enum: PaymentMethod
+    enum: PaymentMethod,
+    type: String,
   })
   type: PaymentMethod;
 

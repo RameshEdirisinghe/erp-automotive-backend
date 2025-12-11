@@ -13,28 +13,11 @@ export class Invoice {
   invoiceId: string;
 
   @Prop({
-    type: {
-      name: { type: String, required: true },
-      email: { type: String, required: true },
-      phone: { type: String, required: true },
-      address: { type: String },
-      vat_number: { type: String },
-      vehicle_number: { type: String },
-      vehicle_model: { type: String },
-      year_of_manufacture: { type: Number },
-    },
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Customer',
     required: true,
   })
-  customer: {
-    name: string;
-    email: string;
-    phone: string;
-    address?: string;
-    vat_number?: string;
-    vehicle_number?: string;
-    vehicle_model?: string;
-    year_of_manufacture?: number;
-  };
+  customer: MongooseSchema.Types.ObjectId;
 
   @Prop([
     {
@@ -66,6 +49,7 @@ export class Invoice {
 
   @Prop({
     required: true,
+    type: String,
     enum: PaymentStatus,
     default: PaymentStatus.PENDING,
   })
@@ -73,6 +57,7 @@ export class Invoice {
 
   @Prop({
     required: true,
+    type: String,
     enum: PaymentMethod,
   })
   paymentMethod: PaymentMethod;
