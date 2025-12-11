@@ -12,6 +12,10 @@ import {
   WeeklySalesDto,
 } from './dto/sales-overview.dto';
 import { Customer, CustomerDocument } from '../customer/customer.schema';
+import {
+  InventoryItem,
+  InventoryItemDocument,
+} from '../inventory_items/inventory_items.schema';
 
 interface WeekRange {
   start: Date;
@@ -26,6 +30,9 @@ export class InvoiceService {
 
     @InjectModel(Customer.name)
     private readonly customerModel: Model<CustomerDocument>,
+
+    @InjectModel(InventoryItem.name)
+    private readonly inventoryItemModel: Model<InventoryItemDocument>,
   ) {}
 
   async getSalesOverview(): Promise<SalesOverviewResponseDto> {
@@ -143,6 +150,7 @@ export class InvoiceService {
   }
 
   async create(data: Partial<Invoice>): Promise<Invoice> {
+    //validate customer Id
     if (!data.customer || !isValidObjectId(data.customer)) {
       throw new BadRequestException('Invalid or missing customer ID.');
     }
@@ -155,6 +163,30 @@ export class InvoiceService {
         'Customer ID does not exist. Please provide an existing customer ID.',
       );
     }
+
+    //validate Inventory Items Ids
+    if (!data.items || data.items.length === 0) {
+      throw new BadRequestException('Invoice must contain at least one item.');
+    }
+
+    const itemIds = data.items.map((i) => i.item);
+
+    for (const id of itemIds) {
+      if (!isValidObjectId(id)) {
+        throw new BadRequestException(`Invalid inventory item ID: ${id}`);
+      }
+    }
+
+    const existingItemsCount = await this.inventoryItemModel.countDocuments({
+      _id: { $in: itemIds },
+    });
+
+    if (existingItemsCount !== itemIds.length) {
+      throw new BadRequestException(
+        'One or more inventory item IDs do not exist.',
+      );
+    }
+
     const customId = await this.getNextInvoiceId();
 
     const existing = await this.invoiceModel.exists({ invoiceId: customId });
