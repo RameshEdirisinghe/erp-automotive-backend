@@ -40,6 +40,7 @@ export class InventoryItem {
 
   @Prop({
     required: true,
+    type: String,
     enum: InventoryStatus,
     default: InventoryStatus.IN_STOCK,
   })

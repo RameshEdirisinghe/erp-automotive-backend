@@ -64,6 +64,7 @@ export class Quotation {
 
   @Prop({
     required: true,
+    type: String,
     enum: PaymentMethod,
   })
   paymentMethod: PaymentMethod;
@@ -77,6 +78,7 @@ export class Quotation {
   @Prop({
     required: true,
     enum: QuotationStatus,
+    type: String,
     default: QuotationStatus.PENDING,
   })
   status: QuotationStatus;

@@ -18,7 +18,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums/role.enum';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN, UserRole.INVENTORY_MANAGER)
+@Roles(UserRole.ADMIN)
 @Controller('finance')
 export class FinanceController {
   constructor(private readonly service: FinanceService) {}

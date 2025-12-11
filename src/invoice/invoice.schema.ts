@@ -66,6 +66,7 @@ export class Invoice {
 
   @Prop({
     required: true,
+    type: String,
     enum: PaymentStatus,
     default: PaymentStatus.PENDING,
   })
@@ -73,6 +74,7 @@ export class Invoice {
 
   @Prop({
     required: true,
+    type: String,
     enum: PaymentMethod,
   })
   paymentMethod: PaymentMethod;
