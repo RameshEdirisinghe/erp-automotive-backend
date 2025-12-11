@@ -1,14 +1,22 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { isValidObjectId, Model } from 'mongoose';
 import { Quotation, QuotationDocument } from './quotation.schema';
 import { QuotationStatus } from '../common/enums/quotation-status.enum';
+import { Customer, CustomerDocument } from '../customer/customer.schema';
 
 @Injectable()
 export class QuotationService {
   constructor(
     @InjectModel(Quotation.name)
     private readonly quotationModel: Model<QuotationDocument>,
+
+    @InjectModel(Customer.name)
+    private readonly customerModel: Model<CustomerDocument>,
   ) {}
 
   async generateQuotationId(): Promise<string> {
@@ -33,6 +41,19 @@ export class QuotationService {
   }
 
   async create(data: Partial<Quotation>): Promise<Quotation> {
+    if (!data.customer || !isValidObjectId(data.customer)) {
+      throw new BadRequestException('Invalid or missing customer ID.');
+    }
+
+    const customerExists = await this.customerModel.exists({
+      _id: data.customer,
+    });
+
+    if (!customerExists) {
+      throw new BadRequestException(
+        'Customer ID does not exist. Please provide an existing customer ID.',
+      );
+    }
     const quotationId = await this.generateQuotationId();
     const now = new Date();
 
