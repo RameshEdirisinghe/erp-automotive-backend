@@ -11,6 +11,7 @@ import {
   SalesOverviewResponseDto,
   WeeklySalesDto,
 } from './dto/sales-overview.dto';
+import { Customer, CustomerDocument } from '../customer/customer.schema';
 
 interface WeekRange {
   start: Date;
@@ -22,6 +23,9 @@ export class InvoiceService {
   constructor(
     @InjectModel(Invoice.name)
     private readonly invoiceModel: Model<InvoiceDocument>,
+
+    @InjectModel(Customer.name)
+    private readonly customerModel: Model<CustomerDocument>,
   ) {}
 
   async getSalesOverview(): Promise<SalesOverviewResponseDto> {
@@ -139,6 +143,18 @@ export class InvoiceService {
   }
 
   async create(data: Partial<Invoice>): Promise<Invoice> {
+    if (!data.customer || !isValidObjectId(data.customer)) {
+      throw new BadRequestException('Invalid or missing customer ID.');
+    }
+
+    const customerExists = await this.customerModel.exists({
+      _id: data.customer,
+    });
+    if (!customerExists) {
+      throw new BadRequestException(
+        'Customer ID does not exist. Please provide an existing customer ID.',
+      );
+    }
     const customId = await this.getNextInvoiceId();
 
     const existing = await this.invoiceModel.exists({ invoiceId: customId });
