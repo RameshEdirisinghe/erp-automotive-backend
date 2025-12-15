@@ -39,6 +39,12 @@ export class CustomerController {
     return this.customerService.findOne(id);
   }
 
+  // Get one customer by phone Number
+  @Get('/phone/:phone')
+  async findOneByPhone(@Param('phone') phone: string): Promise<Customer> {
+    return this.customerService.findOneByPhone(phone);
+  }
+
   // Update a customer
   @Put(':id')
   async update(

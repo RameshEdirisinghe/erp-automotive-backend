@@ -71,7 +71,7 @@ export class Invoice {
   @Prop({ required: true, type: Date })
   dueDate: Date;
 
-  @Prop({ required: true})
+  @Prop({ required: true })
   vehicleNumber: string;
 
   @Prop()
