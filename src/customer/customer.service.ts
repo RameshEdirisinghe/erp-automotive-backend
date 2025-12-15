@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Customer, CustomerDocument } from './customer.schema';
@@ -26,6 +26,24 @@ export class CustomerService {
     if (!customer) {
       throw new NotFoundException(`Customer with id ${id} not found`);
     }
+    return customer;
+  }
+
+  async findOneByPhone(phone: string): Promise<Customer> {
+    if (!phone) {
+      throw new BadRequestException('Phone number is required');
+    }
+
+    const customer = await this.customerModel
+      .findOne({ phone })
+      .exec();
+
+    if (!customer) {
+      throw new NotFoundException(
+        `Customer with phone number ${phone} not found`,
+      );
+    }
+
     return customer;
   }
 

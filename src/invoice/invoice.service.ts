@@ -210,7 +210,11 @@ export class InvoiceService {
   }
 
   async findAll(): Promise<Invoice[]> {
-    return this.invoiceModel.find().populate('items.item').exec();
+    return this.invoiceModel
+      .find()
+      .populate('items.item')
+      .populate('customer')
+      .exec();
   }
 
   async findOne(id: string): Promise<Invoice> {
@@ -218,6 +222,7 @@ export class InvoiceService {
     const invoice = await this.invoiceModel
       .findOne(query)
       .populate('items.item')
+      .populate('customer')
       .exec();
 
     if (!invoice)
