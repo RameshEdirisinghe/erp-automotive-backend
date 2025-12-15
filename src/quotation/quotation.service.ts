@@ -104,13 +104,18 @@ export class QuotationService {
   }
 
   async findAll(): Promise<Quotation[]> {
-    return this.quotationModel.find().populate('items.item').exec();
+    return this.quotationModel
+      .find()
+      .populate('items.item')
+      .populate('customer')
+      .exec();
   }
 
   async findByQuotationId(quotationId: string): Promise<Quotation> {
     const quotation = await this.quotationModel
       .findOne({ quotationId })
       .populate('items.item')
+      .populate('customer')
       .exec();
 
     if (!quotation)
