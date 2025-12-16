@@ -55,6 +55,11 @@ export class InvoiceController {
     return this.invoiceService.findByInvoiceId(invoiceId);
   }
 
+  @Post('by-phone')
+  async findByPhone(@Body('phone') phone: string) {
+    return this.invoiceService.findByPhone(phone);
+  }
+
   @Put(':id')
   async update(@Param('id') id: string, @Body() body: Partial<Invoice>) {
     return this.invoiceService.update(id, body);
