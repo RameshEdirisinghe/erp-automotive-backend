@@ -8,6 +8,7 @@ import {
   HttpCode,
   HttpStatus,
   UnauthorizedException,
+  Get,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthLoginDto } from './dto/auth-login.dto';
@@ -106,5 +107,11 @@ export class AuthController {
     res.clearCookie('refresh_token', { path: '/' });
 
     return { success: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  getMe(@Req() req: AuthenticatedRequest) {
+    return { user: req.user };
   }
 }
