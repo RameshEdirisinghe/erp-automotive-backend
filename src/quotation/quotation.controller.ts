@@ -26,7 +26,7 @@ export class QuotationController {
 
   @Get('next-id')
   async getNextQuotationId() {
-    const nextId = await this.quotationService.getNextQuotationId();
+    const nextId = await this.quotationService.generateQuotationId();
     return { nextQuotationId: nextId };
   }
 
@@ -40,66 +40,45 @@ export class QuotationController {
     return this.quotationService.findAll();
   }
 
-  @Get('/:quotationId')
-  async findByQuotationId(
-    @Param('quotationId') quotationId: string,
-  ): Promise<Quotation> {
-    try {
-      return await this.quotationService.findByQuotationId(quotationId);
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : 'Quotation not found';
-      throw new HttpException(
-        { statusCode: HttpStatus.NOT_FOUND, message },
-        HttpStatus.NOT_FOUND,
-      );
-    }
+  @Get('/:id')
+  async findById(@Param('id') id: string): Promise<Quotation> {
+    return this.handleNotFound(() =>
+      this.quotationService.findByIdOrQuotationId(id),
+    );
   }
 
-  @Put('/:quotationId')
-  async updateByQuotationId(
-    @Param('quotationId') quotationId: string,
+  @Put('/:id')
+  async updateById(
+    @Param('id') id: string,
     @Body() body: Partial<Quotation>,
   ): Promise<Quotation> {
-    try {
-      return await this.quotationService.updateByQuotationId(quotationId, body);
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : 'Quotation not found';
-      throw new HttpException(
-        { statusCode: HttpStatus.NOT_FOUND, message },
-        HttpStatus.NOT_FOUND,
-      );
-    }
+    return this.handleNotFound(() =>
+      this.quotationService.updateByIdOrQuotationId(id, body),
+    );
   }
 
-  @Put('/:quotationId/status')
-  async updateStatusByQuotationId(
-    @Param('quotationId') quotationId: string,
+  @Put('/:id/status')
+  async updateStatusById(
+    @Param('id') id: string,
     @Body() body: { status: QuotationStatus },
   ): Promise<Quotation> {
-    try {
-      return await this.quotationService.updateStatusByQuotationId(
-        quotationId,
-        body.status,
-      );
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : 'Quotation not found';
-      throw new HttpException(
-        { statusCode: HttpStatus.NOT_FOUND, message },
-        HttpStatus.NOT_FOUND,
-      );
-    }
+    return this.handleNotFound(() =>
+      this.quotationService.updateStatusByIdOrQuotationId(id, body.status),
+    );
   }
 
-  @Delete('/:quotationId')
-  async deleteByQuotationId(
-    @Param('quotationId') quotationId: string,
-  ): Promise<{ message: string }> {
+  @Delete('/:id')
+  async deleteById(@Param('id') id: string): Promise<{ message: string }> {
+    await this.handleNotFound(() =>
+      this.quotationService.deleteByIdOrQuotationId(id),
+    );
+    return { message: 'Deleted successfully' };
+  }
+
+  // Helper to handle NotFound exceptions
+  private async handleNotFound<T>(fn: () => Promise<T>): Promise<T> {
     try {
-      await this.quotationService.deleteByQuotationId(quotationId);
-      return { message: 'Deleted successfully' };
+      return await fn();
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : 'Quotation not found';
