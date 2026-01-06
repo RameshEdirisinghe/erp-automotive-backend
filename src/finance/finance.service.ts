@@ -16,28 +16,33 @@ export class FinanceService {
 
   async getNextTransactionId(): Promise<string> {
     const now = new Date();
+
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
 
-    const datePrefix = `${year}-${month}-${day}`;
-    const basePattern = new RegExp(String.raw`^TXN-${datePrefix}-\d{5}$`);
+    const datePart = `${year}-${month}-${day}`;
+    const prefix = `TXN-${datePart}-`;
 
-    const lastTransaction = await this.financeModel
-      .findOne({ transactionId: basePattern })
+    const lastFinance = await this.financeModel
+      .findOne({ transactionId: { $regex: `^${prefix}` } })
       .sort({ transactionId: -1 })
-      .select('transactionId')
-      .lean<{ transactionId?: string }>();
+      .exec();
 
     let nextNumber = 1;
-    if (lastTransaction?.transactionId) {
-      const parts = lastTransaction.transactionId.split('-');
-      const lastNum = Number.parseInt(parts[3], 10);
-      nextNumber = lastNum + 1;
+
+    if (lastFinance?.transactionId) {
+      const lastNumberPart = lastFinance.transactionId.split('-').pop();
+      const lastNumber = Number(lastNumberPart);
+
+      if (!isNaN(lastNumber)) {
+        nextNumber = lastNumber + 1;
+      }
     }
 
-    const formattedNumber = String(nextNumber).padStart(5, '0');
-    return `TXN-${datePrefix}-${formattedNumber}`;
+    const paddedNumber = String(nextNumber).padStart(4, '0');
+
+    return `${prefix}${paddedNumber}`;
   }
 
   async create(data: Partial<Finance>): Promise<Finance> {
