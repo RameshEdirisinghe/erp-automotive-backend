@@ -46,7 +46,7 @@ export class Finance {
   invoice: InvoiceReference;
 
   @Prop({ required: true })
-  amount: string;
+  amount: number;
 
   @Prop()
   created_at: Date;

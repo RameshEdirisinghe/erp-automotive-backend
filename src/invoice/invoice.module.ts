@@ -4,7 +4,11 @@ import { InvoiceService } from './invoice.service';
 import { InvoiceController } from './invoice.controller';
 import { Invoice, InvoiceSchema } from './invoice.schema';
 import { Customer, CustomerSchema } from '../customer/customer.schema';
-import { InventoryItem, InventoryItemSchema } from '../inventory_items/inventory_items.schema';
+import {
+  InventoryItem,
+  InventoryItemSchema,
+} from '../inventory_items/inventory_items.schema';
+import { FinanceModule } from '../finance/finance.module';
 
 @Module({
   imports: [
@@ -13,6 +17,7 @@ import { InventoryItem, InventoryItemSchema } from '../inventory_items/inventory
       { name: Customer.name, schema: CustomerSchema },
       { name: InventoryItem.name, schema: InventoryItemSchema },
     ]),
+    FinanceModule,
   ],
   controllers: [InvoiceController],
   providers: [InvoiceService],

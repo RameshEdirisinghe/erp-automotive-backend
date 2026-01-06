@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, isValidObjectId } from 'mongoose';
+import { Model, isValidObjectId, ClientSession } from 'mongoose';
 import { Invoice, InvoiceDocument } from './invoice.schema';
 import { PaymentStatus } from '../common/enums/payment-status.enum';
 import {
@@ -16,6 +16,7 @@ import {
   InventoryItem,
   InventoryItemDocument,
 } from '../inventory_items/inventory_items.schema';
+import { FinanceService } from '../finance/finance.service';
 
 interface WeekRange {
   start: Date;
@@ -33,6 +34,8 @@ export class InvoiceService {
 
     @InjectModel(InventoryItem.name)
     private readonly inventoryItemModel: Model<InventoryItemDocument>,
+
+    private readonly financeService: FinanceService,
   ) {}
 
   async getSalesOverview(): Promise<SalesOverviewResponseDto> {
@@ -62,16 +65,7 @@ export class InvoiceService {
         return invoiceDate >= week.start && invoiceDate <= week.end;
       });
 
-      const sales = weekInvoices.reduce(
-        (sum, invoice) => sum + invoice.totalAmount,
-        0,
-      );
-      const products = weekInvoices.reduce(
-        (sum, invoice) =>
-          sum +
-          invoice.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
-        0,
-      );
+      const { sales, products } = this.computeTotals(weekInvoices);
 
       return {
         week: `Week ${index + 1}`,
@@ -80,16 +74,8 @@ export class InvoiceService {
       };
     });
 
-    const totalSales = invoices.reduce(
-      (sum, invoice) => sum + invoice.totalAmount,
-      0,
-    );
-    const totalProducts = invoices.reduce(
-      (sum, invoice) =>
-        sum +
-        invoice.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
-      0,
-    );
+    const { sales: totalSales, products: totalProducts } =
+      this.computeTotals(invoices);
 
     return {
       period: `${oneMonthAgo.toLocaleDateString()} - ${today.toLocaleDateString()}`,
@@ -150,63 +136,107 @@ export class InvoiceService {
   }
 
   async create(data: Partial<Invoice>): Promise<Invoice> {
-    //validate customer Id
-    if (!data.customer || !isValidObjectId(data.customer)) {
-      throw new BadRequestException('Invalid or missing customer ID.');
-    }
+    const session: ClientSession = await this.invoiceModel.db.startSession();
+    session.startTransaction();
 
-    const customerExists = await this.customerModel.exists({
-      _id: data.customer,
-    });
-    if (!customerExists) {
-      throw new BadRequestException(
-        'Customer ID does not exist. Please provide an existing customer ID.',
-      );
-    }
-
-    //validate Inventory Items Ids
-    if (!data.items || data.items.length === 0) {
-      throw new BadRequestException('Invoice must contain at least one item.');
-    }
-
-    const itemIds = data.items.map((i) => i.item);
-
-    for (const id of itemIds) {
-      if (!isValidObjectId(id)) {
-        throw new BadRequestException(`Invalid inventory item ID: ${id}`);
+    try {
+      if (!data.customer || !isValidObjectId(data.customer)) {
+        throw new BadRequestException('Invalid or missing customer ID.');
       }
-    }
 
-    const existingItemsCount = await this.inventoryItemModel.countDocuments({
-      _id: { $in: itemIds },
-    });
+      const customerExists = await this.customerModel
+        .exists({ _id: data.customer })
+        .session(session);
 
-    if (existingItemsCount !== itemIds.length) {
-      throw new BadRequestException(
-        'One or more inventory item IDs do not exist.',
+      if (!customerExists) {
+        throw new BadRequestException(
+          'Customer ID does not exist. Please provide an existing customer ID.',
+        );
+      }
+
+      if (!data.items || data.items.length === 0) {
+        throw new BadRequestException(
+          'Invoice must contain at least one item.',
+        );
+      }
+
+      const itemIds = data.items.map((i) => i.item);
+
+      const invalidId = itemIds.find((id) => !isValidObjectId(id));
+      if (invalidId) {
+        const idStr =
+          invalidId &&
+          typeof invalidId === 'object' &&
+          'toString' in invalidId
+            ? (invalidId as { toString(): string }).toString()
+            : String(invalidId);
+        throw new BadRequestException(
+          `Invalid inventory item ID: ${idStr}`,
+        );
+      }
+
+      const existingItemsCount = await this.inventoryItemModel
+        .countDocuments({ _id: { $in: itemIds } })
+        .session(session);
+
+      if (existingItemsCount !== itemIds.length) {
+        throw new BadRequestException(
+          'One or more inventory item IDs do not exist.',
+        );
+      }
+      const customId = await this.getNextInvoiceId();
+
+      const existing = await this.invoiceModel
+        .exists({ invoiceId: customId })
+        .session(session);
+
+      if (existing) {
+        throw new BadRequestException(
+          `Invoice ID "${customId}" already exists.`,
+        );
+      }
+
+      const now = new Date();
+      const issueDate = data.issueDate || now;
+
+      const invoice = new this.invoiceModel({
+        ...data,
+        invoiceId: customId,
+        issueDate,
+        created_at: now,
+        updated_at: now,
+      });
+
+      const savedInvoice = await invoice.save({ session });
+      const transactionId = await this.financeService.getNextTransactionId();
+
+      // Create finance record with only schema-aligned fields
+      await this.financeService.create(
+        {
+          transactionId,
+          transactionDate: now,
+          amount: savedInvoice.totalAmount,
+          invoice: {
+            invoiceId: savedInvoice.invoiceId,
+          },
+          paymentMethod: {
+            type: savedInvoice.paymentMethod,
+            bankName: 'N/A',
+            accountNumber: 'N/A',
+            transactionRef: savedInvoice.invoiceId,
+          },
+        },
+        session,
       );
+
+      await session.commitTransaction();
+      return savedInvoice;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      await session.endSession();
     }
-
-    const customId = await this.getNextInvoiceId();
-
-    const existing = await this.invoiceModel.exists({ invoiceId: customId });
-    if (existing) {
-      throw new BadRequestException(`Invoice ID "${customId}" already exists.`);
-    }
-
-    const now = new Date();
-
-    const issueDate = data.issueDate || now;
-
-    const invoice = new this.invoiceModel({
-      ...data,
-      invoiceId: customId,
-      issueDate: issueDate,
-      created_at: now,
-      updated_at: now,
-    });
-
-    return invoice.save();
   }
 
   async findAll(): Promise<Invoice[]> {
@@ -218,7 +248,7 @@ export class InvoiceService {
   }
 
   async findOne(id: string): Promise<Invoice> {
-    const query = isValidObjectId(id) ? { _id: id } : { invoiceId: id };
+    const query = this.buildIdQuery(id);
     const invoice = await this.invoiceModel
       .findOne(query)
       .populate('items.item')
@@ -226,7 +256,7 @@ export class InvoiceService {
       .exec();
 
     if (!invoice)
-      throw new NotFoundException(`Invoice with ID "${id}" not found.`);
+      throw new NotFoundException(`Invoice with ID "${String(id)}" not found.`);
     return invoice;
   }
 
@@ -238,13 +268,13 @@ export class InvoiceService {
 
     if (!invoice)
       throw new NotFoundException(
-        `Invoice with invoiceId "${invoiceId}" not found.`,
+        `Invoice with invoiceId "${String(invoiceId)}" not found.`,
       );
     return invoice;
   }
 
   async update(id: string, data: Partial<Invoice>): Promise<Invoice> {
-    const query = isValidObjectId(id) ? { _id: id } : { invoiceId: id };
+    const query = this.buildIdQuery(id);
 
     const updateData = { ...data, updated_at: new Date() };
     if (data.issueDate === null) {
@@ -257,7 +287,7 @@ export class InvoiceService {
       .exec();
 
     if (!updated)
-      throw new NotFoundException(`Invoice with ID "${id}" not found.`);
+      throw new NotFoundException(`Invoice with ID "${String(id)}" not found.`);
     return updated;
   }
 
@@ -265,7 +295,7 @@ export class InvoiceService {
     id: string,
     paymentStatus: PaymentStatus,
   ): Promise<Invoice> {
-    const query = isValidObjectId(id) ? { _id: id } : { invoiceId: id };
+    const query = this.buildIdQuery(id);
     const updated = await this.invoiceModel
       .findOneAndUpdate(
         query,
@@ -276,16 +306,39 @@ export class InvoiceService {
       .exec();
 
     if (!updated)
-      throw new NotFoundException(`Invoice with ID "${id}" not found.`);
+      throw new NotFoundException(`Invoice with ID "${String(id)}" not found.`);
     return updated;
   }
 
   async delete(id: string): Promise<{ message: string }> {
-    const query = isValidObjectId(id) ? { _id: id } : { invoiceId: id };
+    const query = this.buildIdQuery(id);
     const deleted = await this.invoiceModel.findOneAndDelete(query).exec();
 
     if (!deleted)
-      throw new NotFoundException(`Invoice with ID "${id}" not found.`);
+      throw new NotFoundException(`Invoice with ID "${String(id)}" not found.`);
     return { message: 'Deleted successfully' };
+  }
+
+  private buildIdQuery(id: string) {
+    return isValidObjectId(id) ? { _id: id } : { invoiceId: id };
+  }
+
+  private computeTotals(invoices: Invoice[]) {
+    const sales = invoices.reduce(
+      (sum, invoice) => sum + (invoice.totalAmount ?? 0),
+      0,
+    );
+    const products = invoices.reduce(
+      (sum, invoice) =>
+        sum +
+        (invoice.items
+          ? invoice.items.reduce(
+              (itemSum, item) => itemSum + (item.quantity ?? 0),
+              0,
+            )
+          : 0),
+      0,
+    );
+    return { sales, products };
   }
 }

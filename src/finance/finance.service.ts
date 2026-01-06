@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, isValidObjectId } from 'mongoose';
+import { Model, isValidObjectId, ClientSession } from 'mongoose';
 import { Finance, FinanceDocument } from './finance.schema';
 
 @Injectable()
@@ -40,10 +40,14 @@ export class FinanceService {
     return `TXN-${datePrefix}-${formattedNumber}`;
   }
 
-  async create(data: Partial<Finance>): Promise<Finance> {
-    const duplicate = await this.financeModel.exists({
-      transactionId: data.transactionId,
-    });
+  async create(
+    data: Partial<Finance>,
+    session?: ClientSession,
+  ): Promise<Finance> {
+    const duplicate = await this.financeModel
+      .exists({ transactionId: data.transactionId })
+      .session(session ?? null);
+
     if (duplicate) {
       throw new BadRequestException(
         `Transaction with ID "${data.transactionId}" already exists`,
@@ -52,16 +56,14 @@ export class FinanceService {
 
     const now = new Date();
 
-    const transactionDate = data.transactionDate || now;
-
     const transaction = new this.financeModel({
       ...data,
-      transactionDate: transactionDate,
+      transactionDate: data.transactionDate || now,
       created_at: now,
       updated_at: now,
     });
 
-    return transaction.save();
+    return transaction.save({ session: session ?? undefined });
   }
 
   async findAll(): Promise<Finance[]> {
