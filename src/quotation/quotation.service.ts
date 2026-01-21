@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { isValidObjectId, Model } from 'mongoose';
+import { isValidObjectId, Model, Types } from 'mongoose';
 import { Quotation, QuotationDocument } from './quotation.schema';
 import { QuotationStatus } from '../common/enums/quotation-status.enum';
 import { Customer, CustomerDocument } from '../customer/customer.schema';
@@ -43,12 +43,7 @@ export class QuotationService {
     return `QUO-${year}-${month}-${day}-${number}`;
   }
 
-  async getNextQuotationId(): Promise<string> {
-    return this.generateQuotationId();
-  }
-
   async create(data: Partial<Quotation>): Promise<Quotation> {
-    //validate customer id
     if (!data.customer || !isValidObjectId(data.customer)) {
       throw new BadRequestException('Invalid or missing customer ID.');
     }
@@ -63,13 +58,13 @@ export class QuotationService {
       );
     }
 
-    //validate InventoryItems Ids
     if (!data.items || data.items.length === 0) {
-      throw new BadRequestException('Invoice must contain at least one item');
+      throw new BadRequestException(
+        'Quotation must contain at least one item.',
+      );
     }
 
     const itemIds = data.items.map((i) => i.item);
-
     for (const id of itemIds) {
       if (!isValidObjectId(id)) {
         throw new BadRequestException(`Invalid inventory item ID: ${id}`);
@@ -85,11 +80,10 @@ export class QuotationService {
         'One or more inventory item IDs do not exist.',
       );
     }
+
     const quotationId = await this.generateQuotationId();
     const now = new Date();
-
     const issueDate = data.issueDate || now;
-
     const validUntil =
       data.validUntil ||
       new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -100,6 +94,7 @@ export class QuotationService {
       issueDate,
       validUntil,
     });
+
     return createdQuotation.save();
   }
 
@@ -111,20 +106,30 @@ export class QuotationService {
       .exec();
   }
 
-  async findByQuotationId(quotationId: string): Promise<Quotation> {
+  // Unified find method: works with quotationId or _id
+  async findByIdOrQuotationId(id: string): Promise<Quotation> {
+    const orConditions: Array<{ quotationId?: string; _id?: Types.ObjectId }> =
+      [{ quotationId: id }];
+
+    if (Types.ObjectId.isValid(id)) {
+      orConditions.push({ _id: new Types.ObjectId(id) });
+    }
+
     const quotation = await this.quotationModel
-      .findOne({ quotationId })
+      .findOne({ $or: orConditions })
       .populate('items.item')
       .populate('customer')
       .exec();
 
-    if (!quotation)
-      throw new NotFoundException(`Quotation with ID ${quotationId} not found`);
+    if (!quotation) {
+      throw new NotFoundException(`Quotation with ID ${id} not found`);
+    }
+
     return quotation;
   }
 
-  async updateByQuotationId(
-    quotationId: string,
+  async updateByIdOrQuotationId(
+    id: string,
     data: Partial<Quotation>,
   ): Promise<Quotation> {
     const updateData = { ...data };
@@ -134,43 +139,70 @@ export class QuotationService {
     }
 
     if (data.validUntil === null) {
-      const issueDate = updateData.issueDate || data.issueDate || new Date();
+      const issueDate = updateData.issueDate || new Date();
       updateData.validUntil = new Date(
         issueDate.getTime() + 30 * 24 * 60 * 60 * 1000,
       );
     }
 
+    const orConditions: Array<{ quotationId?: string; _id?: Types.ObjectId }> =
+      [{ quotationId: id }];
+
+    if (Types.ObjectId.isValid(id)) {
+      orConditions.push({ _id: new Types.ObjectId(id) });
+    }
+
     const quotation = await this.quotationModel
-      .findOneAndUpdate({ quotationId }, updateData, { new: true })
+      .findOneAndUpdate({ $or: orConditions }, updateData, { new: true })
       .populate('items.item')
-      .exec();
-
-    if (!quotation)
-      throw new NotFoundException(`Quotation with ID ${quotationId} not found`);
-    return quotation;
-  }
-
-  async updateStatusByQuotationId(
-    quotationId: string,
-    status: QuotationStatus,
-  ): Promise<Quotation> {
-    const quotation = await this.quotationModel
-      .findOneAndUpdate({ quotationId }, { status }, { new: true })
-      .populate('items.item')
-      .exec();
-
-    if (!quotation)
-      throw new NotFoundException(`Quotation with ID ${quotationId} not found`);
-    return quotation;
-  }
-
-  async deleteByQuotationId(quotationId: string): Promise<void> {
-    const quotation = await this.quotationModel
-      .findOneAndDelete({ quotationId })
+      .populate('customer')
       .exec();
 
     if (!quotation) {
-      throw new NotFoundException(`Quotation with ID ${quotationId} not found`);
+      throw new NotFoundException(`Quotation with ID ${id} not found`);
+    }
+
+    return quotation;
+  }
+
+  async updateStatusByIdOrQuotationId(
+    id: string,
+    status: QuotationStatus,
+  ): Promise<Quotation> {
+    const orConditions: Array<{ quotationId?: string; _id?: Types.ObjectId }> =
+      [{ quotationId: id }];
+
+    if (Types.ObjectId.isValid(id)) {
+      orConditions.push({ _id: new Types.ObjectId(id) });
+    }
+
+    const quotation = await this.quotationModel
+      .findOneAndUpdate({ $or: orConditions }, { status }, { new: true })
+      .populate('items.item')
+      .populate('customer')
+      .exec();
+
+    if (!quotation) {
+      throw new NotFoundException(`Quotation with ID ${id} not found`);
+    }
+
+    return quotation;
+  }
+
+  async deleteByIdOrQuotationId(id: string): Promise<void> {
+    const orConditions: Array<{ quotationId?: string; _id?: Types.ObjectId }> =
+      [{ quotationId: id }];
+
+    if (Types.ObjectId.isValid(id)) {
+      orConditions.push({ _id: new Types.ObjectId(id) });
+    }
+
+    const quotation = await this.quotationModel
+      .findOneAndDelete({ $or: orConditions })
+      .exec();
+
+    if (!quotation) {
+      throw new NotFoundException(`Quotation with ID ${id} not found`);
     }
   }
 }
