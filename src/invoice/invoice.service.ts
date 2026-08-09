@@ -243,6 +243,32 @@ export class InvoiceService {
     return invoice;
   }
 
+  async findByPhone(phone: string): Promise<Invoice[]> {
+    // 1. Find customer by phone
+    const customer = await this.customerModel.findOne({ phone }).exec();
+
+    if (!customer) {
+      throw new NotFoundException(
+        `Customer with phone number "${phone}" not found.`,
+      );
+    }
+
+    // 2. Find invoices for that customer
+    const invoices = await this.invoiceModel
+      .find({ customer: customer._id })
+      .populate('items.item')
+      .populate('customer')
+      .exec();
+
+    if (!invoices || invoices.length === 0) {
+      throw new NotFoundException(
+        `No invoices found for phone number "${phone}".`,
+      );
+    }
+
+    return invoices;
+  }
+
   async update(id: string, data: Partial<Invoice>): Promise<Invoice> {
     const query = isValidObjectId(id) ? { _id: id } : { invoiceId: id };
 
@@ -260,6 +286,8 @@ export class InvoiceService {
       throw new NotFoundException(`Invoice with ID "${id}" not found.`);
     return updated;
   }
+
+
 
   async updatePaymentStatus(
     id: string,
