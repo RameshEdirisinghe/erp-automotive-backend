@@ -8,6 +8,9 @@ import { QuotationModule } from './quotation/quotation.module';
 import { AuthModule } from './auth/auth.module';
 import { FinanceModule } from './finance/finance.module';
 import { CustomerModule } from './customer/customer.module';
+import { SupplierModule } from './supplier/supplier.module';
+import { OrdersModule } from './orders/orders.module';
+import { PurchaseOrdersModule } from './purchase-orders/purchase-orders.module';
 
 @Module({
   imports: [
@@ -23,6 +26,9 @@ import { CustomerModule } from './customer/customer.module';
     AuthModule,
     FinanceModule,
     CustomerModule,
+    SupplierModule,
+    OrdersModule,
+    PurchaseOrdersModule,
   ],
 })
 export class AppModule {}
