@@ -1,58 +1,90 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Schema as MongooseSchema } from 'mongoose';
 
 export type CustomerDocument = Customer & Document;
+
+export function extractCityFromAddress(address: string): string {
+  if (!address) return '';
+  const parts = address.split(',');
+  if (parts.length > 1) {
+    return parts[parts.length - 1].trim();
+  }
+  return address.trim();
+}
 
 @Schema({ timestamps: true })
 export class Customer {
   @Prop({
     required: true,
     trim: true,
-    minlength: 3,
-    maxlength: 100,
+    minlength: 2,
+    maxlength: 150,
   })
-  fullName: string;
+  shopName: string;
+
+  @Prop({
+    required: false,
+    trim: true,
+    default: '',
+  })
+  contactPerson?: string;
 
   @Prop({
     required: true,
-    unique: true,
     trim: true,
-    match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
   })
-  email: string;
+  address: string;
+
+  @Prop({
+    required: false,
+    trim: true,
+    default: '',
+  })
+  city?: string;
 
   @Prop({
     required: true,
-    unique: true,
     trim: true,
-    match: /^[0-9]{10}$/,
   })
   phone: string;
 
   @Prop({
-    required: true,
+    required: false,
     trim: true,
-    minlength: 5,
-    maxlength: 20,
   })
-  vatNumber: string;
+  phone2?: string;
 
   @Prop({
-    type: {
-      street: { type: String, trim: true },
-      city: { type: String, trim: true },
-      country: { type: String, trim: true },
-      zip: { type: String, trim: true },
-    },
     required: false,
-    _id: false,
+    trim: true,
   })
-  address: {
-    street?: string;
-    city?: string;
-    country?: string;
-    zip?: string;
-  };
+  phone3?: string;
+
+  @Prop({
+    required: false,
+    default: 1000000,
+    min: 0,
+  })
+  creditLimit: number;
+
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'User',
+    required: false,
+  })
+  salesRep?: MongooseSchema.Types.ObjectId;
+
+  @Prop({
+    required: false,
+    trim: true,
+  })
+  salesRepName?: string;
+
+  @Prop({
+    required: false,
+    default: 'Active',
+  })
+  status: string;
 
   @Prop({
     required: false,
@@ -66,6 +98,17 @@ export class Customer {
     unique: true,
   })
   customerCode: string;
+
+  @Prop({ required: false, trim: true })
+  notes?: string;
 }
 
 export const CustomerSchema = SchemaFactory.createForClass(Customer);
+
+// Automatically populate city from address before saving
+CustomerSchema.pre<CustomerDocument>('save', function (next) {
+  if (this.address && !this.city) {
+    this.city = extractCityFromAddress(this.address);
+  }
+  next();
+});
