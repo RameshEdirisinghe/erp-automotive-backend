@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -11,15 +12,18 @@ import {
 import { CustomerService } from './customer.service';
 import { Customer } from './customer.schema';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
-import { UserRole } from '../common/enums/role.enum';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN, UserRole.INVENTORY_MANAGER)
+@UseGuards(JwtAuthGuard)
 @Controller('customers')
 export class CustomerController {
   constructor(private readonly customerService: CustomerService) {}
+
+  // Get next customer short ID (e.g., cus-112)
+  @Get('next-id')
+  async getNextId(): Promise<{ nextCustomerCode: string }> {
+    const nextCode = await this.customerService.getNextCustomerCode();
+    return { nextCustomerCode: nextCode };
+  }
 
   // Create a customer
   @Post()
@@ -33,21 +37,30 @@ export class CustomerController {
     return this.customerService.findAll();
   }
 
+  // Get one customer by phone Number
+  @Get('phone/:phone')
+  async findOneByPhone(@Param('phone') phone: string): Promise<Customer> {
+    return this.customerService.findOneByPhone(phone);
+  }
+
   // Get one customer
   @Get(':id')
   async findOne(@Param('id') id: string): Promise<Customer> {
     return this.customerService.findOne(id);
   }
 
-  // Get one customer by phone Number
-  @Get('/phone/:phone')
-  async findOneByPhone(@Param('phone') phone: string): Promise<Customer> {
-    return this.customerService.findOneByPhone(phone);
-  }
-
-  // Update a customer
+  // Update a customer (PUT)
   @Put(':id')
   async update(
+    @Param('id') id: string,
+    @Body() updateData: Partial<Customer>,
+  ): Promise<Customer> {
+    return this.customerService.update(id, updateData);
+  }
+
+  // Update a customer (PATCH)
+  @Patch(':id')
+  async patch(
     @Param('id') id: string,
     @Body() updateData: Partial<Customer>,
   ): Promise<Customer> {

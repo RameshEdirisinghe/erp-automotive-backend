@@ -17,10 +17,17 @@ export class Customer {
   @Prop({
     required: true,
     trim: true,
-    minlength: 2,
-    maxlength: 150,
+    minlength: 1,
+    maxlength: 200,
   })
   shopName: string;
+
+  @Prop({
+    required: false,
+    trim: true,
+    default: '',
+  })
+  fullName?: string;
 
   @Prop({
     required: false,
@@ -30,8 +37,9 @@ export class Customer {
   contactPerson?: string;
 
   @Prop({
-    required: true,
+    required: false,
     trim: true,
+    default: '',
   })
   address: string;
 
@@ -43,20 +51,23 @@ export class Customer {
   city?: string;
 
   @Prop({
-    required: true,
+    required: false,
     trim: true,
+    default: '',
   })
   phone: string;
 
   @Prop({
     required: false,
     trim: true,
+    default: '',
   })
   phone2?: string;
 
   @Prop({
     required: false,
     trim: true,
+    default: '',
   })
   phone3?: string;
 
@@ -71,12 +82,14 @@ export class Customer {
     type: MongooseSchema.Types.ObjectId,
     ref: 'User',
     required: false,
+    default: null,
   })
   salesRep?: MongooseSchema.Types.ObjectId;
 
   @Prop({
     required: false,
     trim: true,
+    default: '',
   })
   salesRepName?: string;
 
@@ -88,14 +101,8 @@ export class Customer {
 
   @Prop({
     required: false,
-    default: function () {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const randomCode = Math.floor(1000 + Math.random() * 9000);
-      return `CUS-${year}-${month}-${randomCode}`;
-    },
-    unique: true,
+    trim: true,
+    default: null,
   })
   customerCode: string;
 
@@ -105,10 +112,13 @@ export class Customer {
 
 export const CustomerSchema = SchemaFactory.createForClass(Customer);
 
-// Automatically populate city from address before saving
+// Automatically populate city and fullName before saving
 CustomerSchema.pre<CustomerDocument>('save', function (next) {
   if (this.address && !this.city) {
     this.city = extractCityFromAddress(this.address);
+  }
+  if (!this.fullName && this.shopName) {
+    this.fullName = this.shopName;
   }
   next();
 });

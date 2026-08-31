@@ -4,9 +4,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, isValidObjectId } from 'mongoose';
+import { Model, isValidObjectId, Types } from 'mongoose';
 import { Invoice, InvoiceDocument } from './invoice.schema';
 import { PaymentStatus } from '../common/enums/payment-status.enum';
+import { PaymentMethod } from '../common/enums/payment-method.enum';
 import {
   SalesOverviewResponseDto,
   WeeklySalesDto,
@@ -45,13 +46,13 @@ export class InvoiceService {
 
     const invoices = await this.invoiceModel
       .find({
-        paymentStatus: PaymentStatus.COMPLETED,
         issueDate: {
           $gte: oneMonthAgo,
           $lte: today,
         },
       })
       .populate('items.item')
+      .populate('customer')
       .exec();
 
     const weeks = this.calculateWeeks(oneMonthAgo, today);
@@ -63,13 +64,13 @@ export class InvoiceService {
       });
 
       const sales = weekInvoices.reduce(
-        (sum, invoice) => sum + invoice.totalAmount,
+        (sum, invoice) => sum + (invoice.totalAmount || 0),
         0,
       );
       const products = weekInvoices.reduce(
         (sum, invoice) =>
           sum +
-          invoice.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
+          (invoice.items || []).reduce((itemSum, item) => itemSum + item.quantity, 0),
         0,
       );
 
@@ -81,13 +82,13 @@ export class InvoiceService {
     });
 
     const totalSales = invoices.reduce(
-      (sum, invoice) => sum + invoice.totalAmount,
+      (sum, invoice) => sum + (invoice.totalAmount || 0),
       0,
     );
     const totalProducts = invoices.reduce(
       (sum, invoice) =>
         sum +
-        invoice.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
+        (invoice.items || []).reduce((itemSum, item) => itemSum + item.quantity, 0),
       0,
     );
 
@@ -130,7 +131,7 @@ export class InvoiceService {
     const day = String(now.getDate()).padStart(2, '0');
 
     const datePrefix = `${year}-${month}-${day}`;
-    const basePattern = new RegExp(String.raw`^INV-${datePrefix}-\d{4}$`);
+    const basePattern = new RegExp(`^INV-${datePrefix}-\\d{4}$`);
 
     const lastInvoice = await this.invoiceModel
       .findOne({ invoiceId: basePattern })
@@ -141,67 +142,163 @@ export class InvoiceService {
     let nextNumber = 1;
     if (lastInvoice?.invoiceId) {
       const parts = lastInvoice.invoiceId.split('-');
-      const lastNum = Number.parseInt(parts[4], 10);
-      nextNumber = lastNum + 1;
+      const lastNum = Number.parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(lastNum)) {
+        nextNumber = lastNum + 1;
+      }
     }
 
     const formattedNumber = String(nextNumber).padStart(4, '0');
     return `INV-${datePrefix}-${formattedNumber}`;
   }
 
-  async create(data: Partial<Invoice>): Promise<Invoice> {
-    //validate customer Id
-    if (!data.customer || !isValidObjectId(data.customer)) {
-      throw new BadRequestException('Invalid or missing customer ID.');
+  async create(data: any): Promise<Invoice> {
+    // 1. Resolve Customer
+    let customerObjectId: Types.ObjectId | undefined = undefined;
+    let customerDetails = data.customerDetails || null;
+
+    let rawCustomerId = data.customer;
+    if (typeof rawCustomerId === 'object' && rawCustomerId !== null) {
+      customerDetails = { ...rawCustomerId, ...customerDetails };
+      rawCustomerId = rawCustomerId._id || rawCustomerId.id;
     }
 
-    const customerExists = await this.customerModel.exists({
-      _id: data.customer,
-    });
-    if (!customerExists) {
-      throw new BadRequestException(
-        'Customer ID does not exist. Please provide an existing customer ID.',
-      );
-    }
+    if (rawCustomerId && isValidObjectId(rawCustomerId)) {
+      const existingCustomer = await this.customerModel.findById(rawCustomerId).exec();
+      if (existingCustomer) {
+        customerObjectId = existingCustomer._id as Types.ObjectId;
+      }
+    } else if (typeof rawCustomerId === 'string' && rawCustomerId.trim()) {
+      const existingCustomer = await this.customerModel.findOne({
+        $or: [
+          { customerCode: rawCustomerId },
+          { fullName: rawCustomerId },
+          { shopName: rawCustomerId },
+        ],
+      }).exec();
 
-    //validate Inventory Items Ids
-    if (!data.items || data.items.length === 0) {
-      throw new BadRequestException('Invoice must contain at least one item.');
-    }
-
-    const itemIds = data.items.map((i) => i.item);
-
-    for (const id of itemIds) {
-      if (!isValidObjectId(id)) {
-        throw new BadRequestException(`Invalid inventory item ID: ${id}`);
+      if (existingCustomer) {
+        customerObjectId = existingCustomer._id as Types.ObjectId;
       }
     }
 
-    const existingItemsCount = await this.inventoryItemModel.countDocuments({
-      _id: { $in: itemIds },
-    });
-
-    if (existingItemsCount !== itemIds.length) {
-      throw new BadRequestException(
-        'One or more inventory item IDs do not exist.',
-      );
+    // If still no ObjectId but customer name provided, create or find customer
+    if (!customerObjectId && customerDetails) {
+      const custName = customerDetails.fullName || customerDetails.shopName || 'Customer';
+      let found = await this.customerModel.findOne({ fullName: custName }).exec();
+      if (!found) {
+        found = await this.customerModel.create({
+          customerCode: `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
+          fullName: custName,
+          shopName: customerDetails.shopName || custName,
+          phone: customerDetails.phone || '0700000000',
+          creditLimit: customerDetails.creditLimit || 1000000,
+        });
+      }
+      customerObjectId = found._id as Types.ObjectId;
     }
 
-    const customId = await this.getNextInvoiceId();
-
-    const existing = await this.invoiceModel.exists({ invoiceId: customId });
-    if (existing) {
-      throw new BadRequestException(`Invoice ID "${customId}" already exists.`);
+    // 2. Resolve Items & Stock
+    if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
+      throw new BadRequestException('Invoice must contain at least one item.');
     }
 
+    const processedItems: any[] = [];
+    for (const rawItem of data.items) {
+      let itemObjectId: Types.ObjectId | undefined = undefined;
+      let rawItemId = rawItem.item || rawItem.id || rawItem._id;
+
+      if (typeof rawItemId === 'object' && rawItemId !== null) {
+        rawItemId = rawItemId._id || rawItemId.id;
+      }
+
+      if (rawItemId && isValidObjectId(rawItemId)) {
+        const invItem = await this.inventoryItemModel.findById(rawItemId).exec();
+        if (invItem) {
+          itemObjectId = invItem._id as Types.ObjectId;
+          // Decrement stock
+          await this.inventoryItemModel.findByIdAndUpdate(invItem._id, {
+            $inc: {
+              quantity: -Math.abs(rawItem.quantity || 1),
+              sold_count: Math.abs(rawItem.quantity || 1),
+            },
+          });
+        }
+      }
+
+      const qty = Math.max(1, Number(rawItem.quantity) || 1);
+      const unitPrice = Number(rawItem.unitPrice) || 0;
+      const total = Number(rawItem.total) || qty * unitPrice;
+
+      processedItems.push({
+        item: itemObjectId,
+        itemCode: rawItem.itemCode || rawItem.product_code || '',
+        itemName: rawItem.itemName || rawItem.product_name || rawItem.name || 'Item',
+        quantity: qty,
+        unitPrice,
+        discount: Number(rawItem.discount) || 0,
+        total,
+      });
+    }
+
+    // 3. Resolve invoice ID
+    let invoiceId = data.invoiceId;
+    if (!invoiceId || typeof invoiceId !== 'string' || !invoiceId.trim()) {
+      invoiceId = await this.getNextInvoiceId();
+    } else {
+      const existing = await this.invoiceModel.findOne({ invoiceId }).exec();
+      if (existing) {
+        invoiceId = await this.getNextInvoiceId();
+      }
+    }
+
+    // 4. Resolve dates
     const now = new Date();
+    const issueDate = data.issueDate ? new Date(data.issueDate) : now;
+    const dueDate = data.dueDate ? new Date(data.dueDate) : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-    const issueDate = data.issueDate || now;
+    // 5. Payment method & status
+    let paymentMethod = data.paymentMethod || PaymentMethod.CASH;
+    if (!Object.values(PaymentMethod).includes(paymentMethod)) {
+      paymentMethod = PaymentMethod.CASH;
+    }
+
+    let paymentStatus = data.paymentStatus || PaymentStatus.PENDING;
+    if (!Object.values(PaymentStatus).includes(paymentStatus)) {
+      paymentStatus = PaymentStatus.PENDING;
+    }
+
+    // 6. Salesman
+    let salesmanId: Types.ObjectId | undefined = undefined;
+    if (data.salesman && isValidObjectId(data.salesman)) {
+      salesmanId = new Types.ObjectId(data.salesman);
+    }
+
+    const subTotal = Number(data.subTotal) || processedItems.reduce((acc, i) => acc + i.total, 0);
+    const discount = Number(data.discount) || 0;
+    const totalAmount = Number(data.totalAmount) || Math.max(0, subTotal - discount);
 
     const invoice = new this.invoiceModel({
       ...data,
-      invoiceId: customId,
-      issueDate: issueDate,
+      invoiceId,
+      customer: customerObjectId,
+      customerDetails,
+      salesman: salesmanId,
+      salesmanName: data.salesmanName || '',
+      items: processedItems,
+      subTotal,
+      discount,
+      totalAmount,
+      paidAmount: Number(data.paidAmount) || (paymentStatus === PaymentStatus.COMPLETED || paymentStatus === PaymentStatus.PAID ? totalAmount : 0),
+      remainingAmount: Number(data.remainingAmount) || (paymentStatus === PaymentStatus.COMPLETED || paymentStatus === PaymentStatus.PAID ? 0 : totalAmount),
+      paymentMethod,
+      paymentStatus,
+      issueDate,
+      dueDate,
+      vehicleNumber: data.vehicleNumber || 'N/A',
+      applyVat: !!data.applyVat,
+      vatAmount: Number(data.vatAmount) || 0,
+      taxRate: Number(data.taxRate) || 0,
       created_at: now,
       updated_at: now,
     });
@@ -214,6 +311,8 @@ export class InvoiceService {
       .find()
       .populate('items.item')
       .populate('customer')
+      .populate('salesman')
+      .sort({ created_at: -1 })
       .exec();
   }
 
@@ -223,6 +322,7 @@ export class InvoiceService {
       .findOne(query)
       .populate('items.item')
       .populate('customer')
+      .populate('salesman')
       .exec();
 
     if (!invoice)
@@ -234,6 +334,8 @@ export class InvoiceService {
     const invoice = await this.invoiceModel
       .findOne({ invoiceId })
       .populate('items.item')
+      .populate('customer')
+      .populate('salesman')
       .exec();
 
     if (!invoice)
@@ -244,32 +346,26 @@ export class InvoiceService {
   }
 
   async findByPhone(phone: string): Promise<Invoice[]> {
-    // 1. Find customer by phone
     const customer = await this.customerModel.findOne({ phone }).exec();
-
     if (!customer) {
-      throw new NotFoundException(
-        `Customer with phone number "${phone}" not found.`,
-      );
+      throw new NotFoundException(`Customer with phone number "${phone}" not found.`);
     }
 
-    // 2. Find invoices for that customer
     const invoices = await this.invoiceModel
       .find({ customer: customer._id })
       .populate('items.item')
       .populate('customer')
+      .populate('salesman')
       .exec();
 
     if (!invoices || invoices.length === 0) {
-      throw new NotFoundException(
-        `No invoices found for phone number "${phone}".`,
-      );
+      throw new NotFoundException(`No invoices found for phone number "${phone}".`);
     }
 
     return invoices;
   }
 
-  async update(id: string, data: Partial<Invoice>): Promise<Invoice> {
+  async update(id: string, data: any): Promise<Invoice> {
     const query = isValidObjectId(id) ? { _id: id } : { invoiceId: id };
 
     const updateData = { ...data, updated_at: new Date() };
@@ -280,14 +376,14 @@ export class InvoiceService {
     const updated = await this.invoiceModel
       .findOneAndUpdate(query, updateData, { new: true })
       .populate('items.item')
+      .populate('customer')
+      .populate('salesman')
       .exec();
 
     if (!updated)
       throw new NotFoundException(`Invoice with ID "${id}" not found.`);
     return updated;
   }
-
-
 
   async updatePaymentStatus(
     id: string,
@@ -301,6 +397,8 @@ export class InvoiceService {
         { new: true },
       )
       .populate('items.item')
+      .populate('customer')
+      .populate('salesman')
       .exec();
 
     if (!updated)

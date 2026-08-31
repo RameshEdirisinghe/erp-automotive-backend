@@ -63,34 +63,49 @@ export class AuthService {
 
   private async getTokens(
     userId: string,
+    email: string,
     role: string,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
-    const payload = { sub: userId, role };
+    fullName: string,
+  ): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
+    const payload = { sub: userId, userId, email, role, fullName };
 
     const accessToken = await this.jwtService.signAsync(payload, {
-      secret: process.env.JWT_SECRET!,
-      expiresIn: '15m',
+      secret: process.env.JWT_SECRET || 'super_secret_jwt_key_2025',
+      expiresIn: (process.env.JWT_EXPIRES_IN || '15m') as any,
     });
 
     const refreshToken = await this.jwtService.signAsync(
       { sub: userId },
       {
-        secret: process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET!,
+        secret:
+          process.env.JWT_REFRESH_SECRET ||
+          process.env.JWT_SECRET ||
+          'super_secret_refresh_jwt_key_2025',
         expiresIn: '7d',
       },
     );
 
-    return { accessToken, refreshToken };
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: 15 * 60, // 15 minutes in seconds
+    };
   }
 
   async login(dto: { email: string; password: string }): Promise<{
     user: SafeUser;
-    tokens: { accessToken: string; refreshToken: string };
+    tokens: { accessToken: string; refreshToken: string; expiresIn: number };
   }> {
     const user = await this.validateUser(dto.email, dto.password);
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
-    const tokens = await this.getTokens(user._id.toString(), user.role);
+    const tokens = await this.getTokens(
+      user._id.toString(),
+      user.email,
+      user.role,
+      user.fullName,
+    );
+
     const refreshTokenHash = await this.hash(tokens.refreshToken);
     await this.usersService.setRefreshToken(
       user._id.toString(),
@@ -108,36 +123,66 @@ export class AuthService {
     return { user: safeUser, tokens };
   }
 
-  async refreshTokensFromCookie(
+  async refreshTokens(
     providedRefreshToken: string,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  ): Promise<{
+    user: SafeUser;
+    tokens: { accessToken: string; refreshToken: string; expiresIn: number };
+  }> {
+    if (!providedRefreshToken) {
+      throw new UnauthorizedException('No refresh token provided');
+    }
+
     let payload: { sub: string };
     try {
       payload = this.jwtService.verify(providedRefreshToken, {
-        secret: process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET!,
+        secret:
+          process.env.JWT_REFRESH_SECRET ||
+          process.env.JWT_SECRET ||
+          'super_secret_refresh_jwt_key_2025',
       });
     } catch {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
     const user = await this.usersService.findByUserId(payload.sub);
-    if (!user || !user.refreshTokenHash)
-      throw new UnauthorizedException('Please login');
+    if (!user || !user.refreshTokenHash) {
+      throw new UnauthorizedException('Access denied. Please log in again.');
+    }
 
     const isValid = await bcrypt.compare(
       providedRefreshToken,
       user.refreshTokenHash,
     );
-    if (!isValid) throw new UnauthorizedException('Invalid refresh token');
+    if (!isValid) {
+      // Possible token reuse / breach - invalidate token
+      await this.usersService.setRefreshToken(user._id.toString(), null);
+      throw new UnauthorizedException('Invalid refresh token. Session revoked.');
+    }
 
-    const tokens = await this.getTokens(user._id.toString(), user.role);
+    // Generate rotated tokens
+    const tokens = await this.getTokens(
+      user._id.toString(),
+      user.email,
+      user.role,
+      user.fullName,
+    );
+
     const newRefreshHash = await this.hash(tokens.refreshToken);
     await this.usersService.setRefreshToken(
       user._id.toString(),
       newRefreshHash,
     );
 
-    return tokens;
+    const {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      passwordHash,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      refreshTokenHash: _rt,
+      ...safeUser
+    } = user.toObject() as User & { _id: string };
+
+    return { user: safeUser, tokens };
   }
 
   async logout(userId: string): Promise<void> {

@@ -17,6 +17,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums/role.enum';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { UsersService } from '../users/users.service';
 import type { Request, Response } from 'express';
 import { JwtPayload } from '../common/interfaces/jwt-payload.interface';
 
@@ -26,7 +27,10 @@ interface AuthenticatedRequest extends Request {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   private getCookieOptions(maxAge: number) {
     return {
@@ -71,25 +75,47 @@ export class AuthController {
 
     this.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
 
-    return { user };
+    return {
+      user,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresIn: tokens.expiresIn,
+      message: 'Logged in successfully',
+    };
   }
 
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
   async refresh(
     @Req() req: Request,
+    @Body() body: { refreshToken?: string },
     @Res({ passthrough: true }) res: Response,
   ) {
-    const refreshToken = (req.cookies as Record<string, string> | undefined)
-      ?.refresh_token;
+    const authHeader = req.headers?.authorization;
+    const bearerToken = authHeader?.startsWith('Bearer ')
+      ? authHeader.split(' ')[1]
+      : undefined;
 
-    if (!refreshToken) throw new UnauthorizedException('No refresh token');
+    const refreshToken =
+      (req.cookies as Record<string, string> | undefined)?.refresh_token ||
+      body?.refreshToken ||
+      bearerToken;
 
-    const tokens = await this.authService.refreshTokensFromCookie(refreshToken);
+    if (!refreshToken) {
+      throw new UnauthorizedException('No refresh token provided');
+    }
+
+    const { user, tokens } = await this.authService.refreshTokens(refreshToken);
 
     this.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
 
-    return { success: true };
+    return {
+      user,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresIn: tokens.expiresIn,
+      success: true,
+    };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -99,19 +125,33 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const userId = req.user?.userId ?? req.user?.sub;
-    if (!userId) throw new UnauthorizedException('User not found');
-
-    await this.authService.logout(userId);
+    if (userId) {
+      await this.authService.logout(userId);
+    }
 
     res.clearCookie('access_token', { path: '/' });
     res.clearCookie('refresh_token', { path: '/' });
 
-    return { success: true };
+    return { success: true, message: 'Logged out successfully' };
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  getMe(@Req() req: AuthenticatedRequest) {
-    return { user: req.user };
+  async getMe(@Req() req: AuthenticatedRequest) {
+    const userId = req.user?.userId ?? req.user?.sub;
+    if (!userId) throw new UnauthorizedException('Not authenticated');
+
+    const user = await this.usersService.findByUserId(userId);
+    if (!user) throw new UnauthorizedException('User not found');
+
+    const {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      passwordHash,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      refreshTokenHash,
+      ...safeUser
+    } = user.toObject();
+
+    return { user: safeUser };
   }
 }

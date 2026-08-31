@@ -15,37 +15,62 @@ export class Invoice {
   @Prop({
     type: MongooseSchema.Types.ObjectId,
     ref: 'Customer',
-    required: true,
+    required: false,
   })
-  customer: MongooseSchema.Types.ObjectId;
+  customer?: MongooseSchema.Types.ObjectId;
+
+  @Prop({ type: Object, default: null })
+  customerDetails?: Record<string, any>;
+
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'User',
+    required: false,
+  })
+  salesman?: MongooseSchema.Types.ObjectId;
+
+  @Prop({ default: '' })
+  salesmanName?: string;
 
   @Prop([
     {
       item: {
         type: MongooseSchema.Types.ObjectId,
         ref: 'InventoryItem',
-        required: true,
+        required: false,
       },
+      itemCode: { type: String, default: '' },
+      itemName: { type: String, default: '' },
       quantity: { type: Number, required: true, min: 1 },
       unitPrice: { type: Number, required: true },
+      discount: { type: Number, default: 0 },
       total: { type: Number, required: true },
     },
   ])
   items: Array<{
-    item: MongooseSchema.Types.ObjectId;
+    item?: MongooseSchema.Types.ObjectId;
+    itemCode?: string;
+    itemName?: string;
     quantity: number;
     unitPrice: number;
+    discount?: number;
     total: number;
   }>;
 
-  @Prop({ required: true, min: 0 })
+  @Prop({ required: true, default: 0, min: 0 })
   subTotal: number;
 
   @Prop({ default: 0, min: 0 })
   discount: number;
 
-  @Prop({ required: true, min: 0 })
+  @Prop({ required: true, default: 0, min: 0 })
   totalAmount: number;
+
+  @Prop({ default: 0, min: 0 })
+  paidAmount?: number;
+
+  @Prop({ default: 0, min: 0 })
+  remainingAmount?: number;
 
   @Prop({
     required: true,
@@ -59,20 +84,33 @@ export class Invoice {
     required: true,
     type: String,
     enum: PaymentMethod,
+    default: PaymentMethod.CASH,
   })
   paymentMethod: PaymentMethod;
+
+  @Prop({ type: Array, default: [] })
+  payments?: Array<any>;
 
   @Prop({ type: Date })
   bankDepositDate?: Date;
 
-  @Prop({ required: true, type: Date })
+  @Prop({ required: true, type: Date, default: Date.now })
   issueDate: Date;
 
-  @Prop({ required: true, type: Date })
+  @Prop({ required: true, type: Date, default: Date.now })
   dueDate: Date;
 
-  @Prop({ required: true })
+  @Prop({ default: 'N/A' })
   vehicleNumber: string;
+
+  @Prop({ default: false })
+  applyVat?: boolean;
+
+  @Prop({ default: 0 })
+  vatAmount?: number;
+
+  @Prop({ default: 0 })
+  taxRate?: number;
 
   @Prop()
   notes?: string;
